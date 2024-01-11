@@ -6,9 +6,7 @@ DatabaseManager::DatabaseManager(QObject *parent)
 
 void DatabaseManager::initializeDatabase()
 {
-    QMutexLocker locker(&mutex);
     QFile databaseFile("bankdatabase.db");
-
     if (databaseFile.exists())
     {
         logger.log("bankdatabase already exists.");
@@ -68,7 +66,6 @@ void DatabaseManager::closeConnection(const QString &connectionName)
 
 bool DatabaseManager::createTables(const QString &connectionName)
 {
-    QMutexLocker locker(&mutex);
     openConnection(connectionName);
     QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
     QSqlQuery qry(dbConnection);

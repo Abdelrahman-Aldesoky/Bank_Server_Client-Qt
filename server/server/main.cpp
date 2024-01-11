@@ -39,3 +39,5 @@ void handleSignal(int signal)
     signalLogger.log("Received exit signal. Initiating server shutdown.");
     QCoreApplication::quit();
 }
+
+// trial remote commit
