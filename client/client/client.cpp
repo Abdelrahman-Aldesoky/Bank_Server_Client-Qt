@@ -1,16 +1,16 @@
-#include "bank_client.h"
-#include "ui_bank_client.h"
+#include "client.h"
+#include "ui_client.h"
 #include "adminwindow.h"
 #include "userwindow.h"
 
 // Regular expressions for username and password validation
-const QRegularExpression bank_client::usernameRegex("^[a-zA-Z0-9_]*$");
-const QRegularExpression bank_client::passwordRegex("\\s");
+const QRegularExpression client::usernameRegex("^[a-zA-Z0-9_]*$");
+const QRegularExpression client::passwordRegex("\\s");
 
 // Constructor
-bank_client::bank_client(QWidget *parent)
+client::client(QWidget *parent)
     : QMainWindow(parent),
-    ui(new Ui::bank_client),
+    ui(new Ui::client),
     socket(new QTcpSocket(this))
 {
     // Setup the UI
@@ -21,11 +21,11 @@ bank_client::bank_client(QWidget *parent)
     // Connect to the server
     socket->connectToHost("localhost", 54321);
     // Connect the readyRead signal to the readyRead slot
-    connect(socket, &QTcpSocket::readyRead, this, &bank_client::readyRead);
+    connect(socket, &QTcpSocket::readyRead, this, &client::readyRead);
 }
 
 // Destructor
-bank_client::~bank_client()
+client::~client()
 {
     // Flush the socket
     socket->flush();
@@ -34,30 +34,40 @@ bank_client::~bank_client()
 }
 
 // Slot for handling incoming data from the server
-void bank_client::readyRead()
+void client::readyRead()
 {
     // Read the response from the server
-    QString responseText = socket->readAll();
-    // Display the response in a label
-    ui->label_view_server->setText(responseText);
+    QByteArray responseData = socket->readAll();
+    QJsonDocument jsonResponse = QJsonDocument::fromJson(responseData);
 
-    // Split the response into parts
-    QStringList responseParts = responseText.split('|');
-
-    // Check the response parts
-    if (responseParts.size() == 3)
+    // Check if the response is a valid JSON object
+    if (!jsonResponse.isObject())
     {
-        // Handle the login response
-        handleLoginResponse(responseParts);
+        qDebug() << "Invalid JSON response from the server.";
+        return;
     }
-    // Handle invalid response size or format if needed
+
+    // Handle the response based on the request ID
+    QJsonObject responseObject = jsonResponse.object();
+    int responseId = responseObject["responseId"].toInt();
+
+    switch (responseId)
+    {
+    case 0:
+        handleLoginResponse(responseObject);
+        break;
+    default:
+        qDebug() << "Unknown responseId ID: " << responseId;
+        break;
+    }
+    qDebug() << responseData;
 }
 
 // Slot for handling login button click
-void bank_client::on_pushButton_login_clicked()
+void client::on_pushButton_login_clicked()
 {
     // Request ID for login
-    quint8 request_id = 1;
+    quint8 requestId = 0;
     // Get the username and password from the UI
     QString username = ui->lineEdit_Username->text();
     QString password = ui->lineEdit_Password->text();
@@ -86,20 +96,26 @@ void bank_client::on_pushButton_login_clicked()
         return;
     }
 
-    // Construct the request text
-    QString requestText = QStringLiteral("%1|%2|%3").arg(request_id).arg(username).arg(password);
+    // Construct the request JSON object
+    QJsonObject requestObject;
+    requestObject["requestId"] = static_cast<int>(requestId);
+    requestObject["username"] = username;
+    requestObject["password"] = password;
+
+    // Convert the JSON object to a JSON document
+    QJsonDocument jsonRequest(requestObject);
 
     // Send the request to the server
-    socket->write(requestText.toUtf8());
+    socket->write(jsonRequest.toJson());
 }
 
 // Function to handle login response from the server
-void bank_client::handleLoginResponse(const QStringList &responseParts)
+void client::handleLoginResponse(const QJsonObject &responseObject)
 {
     // Extract information from the response
-    bool loginSuccess = responseParts[0].toInt();
-    qint64 accountNumber = responseParts[1].toLongLong();
-    bool isAdmin = responseParts[2].toInt();
+    bool loginSuccess = responseObject["loginSuccess"].toBool();
+    qint64 accountNumber = responseObject["accountNumber"].toVariant().toLongLong();
+    bool isAdmin = responseObject["isAdmin"].toBool();
 
     // Check if login is successful
     if (loginSuccess)
@@ -107,17 +123,21 @@ void bank_client::handleLoginResponse(const QStringList &responseParts)
         // Create and show the appropriate window based on user type
         if (isAdmin)
         {
-            AdminWindow *adminWindow = new AdminWindow(this, accountNumber);
-            // Connect the finished signal in the AdminWindow object to showOldWindow in the bank_client object
-            connect(adminWindow, &AdminWindow::finished, this, &bank_client::showOldWindow);
+            // Disconnect the readyRead signal from the client slot
+            disconnect(socket, &QTcpSocket::readyRead, this, &client::readyRead);
+            AdminWindow *adminWindow = new AdminWindow(this, accountNumber, socket);
+            // Connect the finished signal in the AdminWindow object to showOldWindow in the client object
+            connect(adminWindow, &AdminWindow::finished, this, &client::showOldWindow);
             qDebug() << adminWindow;
             adminWindow->show();
         }
         else
         {
-            UserWindow *userWindow = new UserWindow(this, accountNumber);
-            // Connect the finished signal in the UserWindow object to showOldWindow in the bank_client object
-            connect(userWindow, &UserWindow::finished, this, &bank_client::showOldWindow);
+            // Disconnect the readyRead signal from the client slot
+            disconnect(socket, &QTcpSocket::readyRead, this, &client::readyRead);
+            UserWindow *userWindow = new UserWindow(this, accountNumber, socket);
+            // Connect the finished signal in the UserWindow object to showOldWindow in the client object
+            connect(userWindow, &UserWindow::finished, this, &client::showOldWindow);
             qDebug() << userWindow;
             userWindow->show();
         }
@@ -130,12 +150,12 @@ void bank_client::handleLoginResponse(const QStringList &responseParts)
     }
 }
 
-void bank_client::showOldWindow()
+void client::showOldWindow()
 {
+    connect(socket, &QTcpSocket::readyRead, this, &client::readyRead);
     // Clear the login window
     ui->lineEdit_Username->clear();
     ui->lineEdit_Password->clear();
-    ui->label_view_server->clear();
 
     // Get the sender object
     QObject *senderObject = sender();
