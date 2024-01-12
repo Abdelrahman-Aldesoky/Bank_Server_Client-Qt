@@ -15,11 +15,15 @@ client::client(QWidget *parent)
 {
     // Setup the UI
     ui->setupUi(this);
-    // Set the window title
+    // Set the window elements
     setWindowTitle("Login Window");
 
-    // Connect to the server
-    socket->connectToHost("localhost", 54321);
+    //handle state changed for connection
+    connect(socket, &QTcpSocket::stateChanged, this, &client::handleStateChanged);
+
+    //attempt connecting to the server
+    connectToServer();
+
     // Connect the readyRead signal to the readyRead slot
     connect(socket, &QTcpSocket::readyRead, this, &client::readyRead);
 }
@@ -32,6 +36,38 @@ client::~client()
     // Delete the UI
     delete ui;
 }
+
+void client::connectToServer()
+{
+    // Attempt to connect to the server
+    socket->connectToHost("localhost", 54321);
+}
+
+void client::handleStateChanged(QAbstractSocket::SocketState socketState)
+{
+    if (socketState == QAbstractSocket::ConnectedState)
+    {
+        // The socket is connected
+        ui->chkbox->setText("Connected");
+        ui->chkbox->setChecked(true);
+        ui->pbn_connect->setEnabled(false);
+        ui->chkbox->setEnabled(false);
+    }
+    else
+    {
+        // The socket is not connected
+        ui->chkbox->setText("Not connected");
+        ui->chkbox->setChecked(false);
+        ui->pbn_connect->setEnabled(true);
+        ui->chkbox->setEnabled(false);
+    }
+}
+
+void client::on_pbn_connect_clicked()
+{
+    connectToServer();
+}
+
 
 // Slot for handling incoming data from the server
 void client::readyRead()
