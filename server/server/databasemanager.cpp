@@ -576,3 +576,62 @@ QJsonArray DatabaseManager::viewTransactionHistory(qint64 accountNumber, const Q
     return transactionHistoryArray;
 }
 
+QJsonObject DatabaseManager::updateUserData(const QJsonObject &jsonObject, const QString &connectionName)
+{
+    QMutexLocker locker(&mutex);
+    QSqlDatabase db = QSqlDatabase::database(connectionName);
+    QJsonObject responseObj;
+
+    QString username = jsonObject["username"].toString();
+    QString name = jsonObject["name"].toString();
+    QString password = jsonObject["password"].toString();
+
+    // Check if the account exists and get the account number
+    QSqlQuery checkQuery(db);
+    checkQuery.prepare("SELECT AccountNumber FROM Accounts WHERE Username = :username");
+    checkQuery.bindValue(":username", username);
+
+    if (checkQuery.exec() && checkQuery.next())
+    {
+        qint64 accountNumber = checkQuery.value(0).toLongLong();
+
+        // The account exists, proceed with the update
+        if (!password.isEmpty())
+        {
+            QSqlQuery updateQuery(db);
+            updateQuery.prepare("UPDATE Accounts SET Password = :password WHERE Username = :username");
+            updateQuery.bindValue(":username", username);
+            updateQuery.bindValue(":password", password);
+            if (!updateQuery.exec())
+            {
+                responseObj["updateSuccess"] = false;
+                responseObj["errorMessage"] = "Failed to update password";
+                return responseObj;
+            }
+        }
+
+        if (!name.isEmpty())
+        {
+            QSqlQuery updateQuery(db);
+            updateQuery.prepare("UPDATE Users_Personal_Data SET Name = :name WHERE AccountNumber = :accountNumber");
+            updateQuery.bindValue(":accountNumber", accountNumber);
+            updateQuery.bindValue(":name", name);
+            if (!updateQuery.exec())
+            {
+                responseObj["updateSuccess"] = false;
+                responseObj["errorMessage"] = "Failed to update name";
+                return responseObj;
+            }
+        }
+
+        responseObj["updateSuccess"] = true;
+    }
+    else
+    {
+        // The account does not exist
+        responseObj["updateSuccess"] = false;
+        responseObj["errorMessage"] = "Account not found";
+    }
+
+    return responseObj;
+}

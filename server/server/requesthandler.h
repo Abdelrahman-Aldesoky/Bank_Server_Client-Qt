@@ -37,6 +37,7 @@ private:
     void handleMakeTransactionRequest(QJsonObject jsonObj);
     void handleMakeTransferRequest(QJsonObject jsonObj);
     void handleViewTransactionHistoryRequest(QJsonObject jsonObj);
+    void handleUpdateAccountRequest(QJsonObject jsonObj);
 };
 
 #endif // REQUESTHANDLER_H

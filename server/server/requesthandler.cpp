@@ -48,6 +48,9 @@ void RequestHandler::handleDifferentClientRequests(QByteArray requestData)
     case 8:
         handleViewTransactionHistoryRequest(jsonObj);
         break;
+    case 9:
+        handleUpdateAccountRequest(jsonObj);
+        break;
     default:
         // Handle unknown request
         logger.log("Unknown request");
@@ -240,3 +243,22 @@ void RequestHandler::handleViewTransactionHistoryRequest(QJsonObject jsonObj)
     // Emit the responseReady signal to send the response back to the client
     emit responseReady(responseData);
 }
+
+void RequestHandler::handleUpdateAccountRequest(QJsonObject jsonObj)
+{
+    // Call the updateUserData method in the DatabaseManager
+    QJsonObject responseObj = databaseManager->updateUserData(jsonObj, connectionName);
+
+    // Add the requestId from the original request to the response object
+    responseObj["responseId"] = jsonObj["requestId"].toInt();
+
+    // Convert the response object to a JSON document
+    QJsonDocument jsonResponse(responseObj);
+
+    // Convert the JSON document to a byte array
+    QByteArray responseData = jsonResponse.toJson();
+
+    // Emit the responseReady signal to send the response back to the client
+    emit responseReady(responseData);
+}
+

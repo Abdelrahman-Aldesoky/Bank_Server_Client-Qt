@@ -43,6 +43,8 @@ public:
                              double amount, const QString &connectionName);
     QJsonArray viewTransactionHistory(qint64 accountNumber,
                                       const QString &connectionName);
+    QJsonObject updateUserData(const QJsonObject &jsonObject,
+                                                const QString &connectionName);
 
 private:
     QMutex mutex;

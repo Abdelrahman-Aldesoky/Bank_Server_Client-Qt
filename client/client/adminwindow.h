@@ -36,6 +36,8 @@ private slots:
 
     void on_pbn_view_transaction_history_clicked();
 
+    void on_pbn_update_account_clicked();
+
 private:
     Ui::AdminWindow *ui;
     QTcpSocket *socket;
@@ -50,6 +52,7 @@ private:
     void handleDeleteAccountResponse(const QJsonObject &responseObject);
     void handleFetchAllUserDataResponse(const QJsonObject &responseObject);
     void handleViewTransactionHistoryResponse(const QJsonObject &responseObject);
+    void handleUpdateAccountResponse(const QJsonObject &responseObject);
 };
 
 #endif // ADMINWINDOW_H

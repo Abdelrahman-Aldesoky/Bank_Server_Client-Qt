@@ -65,6 +65,9 @@ void AdminWindow::readyRead()
     case 8:
         handleViewTransactionHistoryResponse(responseObject);
         break;
+    case 9:
+        handleUpdateAccountResponse(responseObject);
+        break;
     default:
         qDebug() << "Unknown responseId ID: " << responseId;
         break;
@@ -445,5 +448,65 @@ void AdminWindow::handleViewTransactionHistoryResponse(const QJsonObject &respon
     {
         ui->lbl_err_transaction_history->setText("Failed to view transaction history.");
         qDebug() << "Failed to view Transaction History.";
+    }
+}
+void AdminWindow::on_pbn_update_account_clicked()
+{
+    // Request ID for Update Account
+    quint8 requestId = 9;
+
+    // Get the necessary information from the UI
+    QString username = ui->lnedit_username_input->text();
+    QString password = ui->lnedit_password_input->text();
+    QString name = ui->lnedit_name_input->text();
+
+    // Check if username is provided and matches the regex
+    if (username.isEmpty() || !usernameRegex.match(username).hasMatch())
+    {
+        qDebug() << "Warning: Please provide a valid username.";
+        ui->lbl_error_create->setText("Please provide a valid username.");
+        return;
+    }
+
+    // Check if password is valid
+    if (!password.isEmpty() && passwordRegex.match(password).hasMatch())
+    {
+        qDebug() << "Warning: Password cannot contain whitespace.";
+        ui->lbl_error_create->setText("Password cannot contain whitespace.");
+        return;
+    }
+
+    // Construct the request JSON object
+    QJsonObject requestObject;
+    requestObject["requestId"] = static_cast<int>(requestId);
+    requestObject["username"] = username;
+
+    // Only add the fields to the JSON object if they are not empty
+    if (!password.isEmpty())
+        requestObject["password"] = password;
+    if (!name.isEmpty())
+        requestObject["name"] = name;
+
+    // Convert the JSON object to a JSON document
+    QJsonDocument jsonRequest(requestObject);
+
+    // Send the request to the server
+    socket->write(jsonRequest.toJson());
+}
+
+void AdminWindow::handleUpdateAccountResponse(const QJsonObject &responseObject)
+{
+    bool updateSuccess = responseObject["updateSuccess"].toBool();
+
+    if (updateSuccess)
+    {
+        ui->lbl_error_create->setText("Update Account successful.");
+        qDebug() << "Update Account successful.";
+    }
+    else
+    {
+        QString errorMessage = responseObject["errorMessage"].toString();
+        ui->lbl_error_create->setText(errorMessage);
+        qDebug() << "Failed to update account. Error: " << errorMessage;
     }
 }
