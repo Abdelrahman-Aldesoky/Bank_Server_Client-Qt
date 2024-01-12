@@ -14,7 +14,11 @@ ClientRunnable::~ClientRunnable()
         clientSocket->deleteLater();
         clientSocket = nullptr;
     }
-    delete databaseManager;
+    if(databaseManager)
+    {
+        databaseManager->deleteLater();
+        databaseManager = nullptr;
+    }
 }
 
 void ClientRunnable::run()
@@ -39,6 +43,11 @@ void ClientRunnable::run()
 
     connect(clientSocket, &QTcpSocket::readyRead, this, &ClientRunnable::readyRead, Qt::DirectConnection);
     connect(clientSocket, &QTcpSocket::disconnected, this, &ClientRunnable::socketDisconnected, Qt::DirectConnection);
+
+    // Log the thread ID when it's started
+    logger.log("Thread with ID: " +
+               QString::number(reinterpret_cast<quintptr>(QThread::currentThreadId())) +
+               " has started.");
 
     logger.log("Client setup completed.");
 }
@@ -65,9 +74,16 @@ void ClientRunnable::sendResponseToClient(QByteArray responseData)
 
 void ClientRunnable::socketDisconnected()
 {
-    logger.log("Client disconnected.");
     QString connectionName = QString::number(socketDescriptor);
     databaseManager->closeConnection(connectionName);
     emit clientDisconnected(socketDescriptor);
+
+    // Log the thread ID before quitting
+    logger.log("Thread with ID: " +
+               QString::number(reinterpret_cast<quintptr>(QThread::currentThreadId())) +
+               " is about to quit.");
+
     quit();
+    deleteLater();
+    logger.log("Client disconnected.");
 }

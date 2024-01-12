@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QFile>
 #include <QTextStream>
+#include <QMutex>
 #include <QDebug>
 
 class Logger : public QObject
@@ -20,6 +21,7 @@ private:
     QFile logFile;
     QTextStream textStream;
     QString logTag;
+    QMutex mutex;
 };
 
 #endif // LOGGER_H

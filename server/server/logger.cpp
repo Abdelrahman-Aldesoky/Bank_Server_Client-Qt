@@ -2,7 +2,15 @@
 
 Logger::Logger(const QString &tag, QObject *parent)
     : QObject(parent), logTag(tag)
+{}
+
+Logger::~Logger()
+{}
+
+void Logger::log(const QString &message)
 {
+    QMutexLocker locker(&mutex);
+
     QString logFilePath = "common_log.txt";
 
     logFile.setFileName(logFilePath);
@@ -15,19 +23,10 @@ Logger::Logger(const QString &tag, QObject *parent)
     {
         qDebug() << "Failed to open log file:" << logFilePath;
     }
-}
-
-Logger::~Logger()
-{
-    logFile.close();
-}
-
-void Logger::log(const QString &message)
-{
     QString formattedMessage = QString("%1: %2").arg(logTag, message);
     textStream << formattedMessage << '\n';
     textStream.flush();
+    logFile.close();
 
-    // Also print the log message to the console for debugging
     qDebug() << formattedMessage;
 }

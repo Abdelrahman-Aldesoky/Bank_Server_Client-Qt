@@ -17,6 +17,7 @@ int main(int argc, char *argv[])
     databaseManager.initializeDatabase();
 
     Server server(&a);
+
     Logger mainLogger("Main");
 
     if (!server.isListening())
@@ -28,7 +29,6 @@ int main(int argc, char *argv[])
     mainLogger.log("Event loop Started.");
 
     a.processEvents();
-
     return a.exec();
 }
 
@@ -39,5 +39,3 @@ void handleSignal(int signal)
     signalLogger.log("Received exit signal. Initiating server shutdown.");
     QCoreApplication::quit();
 }
-
-// trial remote commit

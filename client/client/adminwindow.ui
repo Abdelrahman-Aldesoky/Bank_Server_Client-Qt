@@ -14,16 +14,16 @@
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QWidget" name="layoutWidget">
+   <widget class="QWidget" name="">
     <property name="geometry">
      <rect>
-      <x>460</x>
-      <y>0</y>
-      <width>621</width>
-      <height>226</height>
+      <x>341</x>
+      <y>1</y>
+      <width>741</width>
+      <height>551</height>
      </rect>
     </property>
-    <layout class="QVBoxLayout" name="verticalLayout_5">
+    <layout class="QVBoxLayout" name="verticalLayout">
      <item>
       <widget class="QTableWidget" name="tbl_view_database">
        <column>
@@ -54,7 +54,7 @@
       </widget>
      </item>
      <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_9">
+      <layout class="QHBoxLayout" name="horizontalLayout">
        <item>
         <widget class="QPushButton" name="pbn_view_database">
          <property name="text">
@@ -71,73 +71,53 @@
        </item>
       </layout>
      </item>
-    </layout>
-   </widget>
-   <widget class="QWidget" name="layoutWidget">
-    <property name="geometry">
-     <rect>
-      <x>460</x>
-      <y>230</y>
-      <width>621</width>
-      <height>321</height>
-     </rect>
-    </property>
-    <layout class="QVBoxLayout" name="verticalLayout_8">
      <item>
-      <layout class="QVBoxLayout" name="verticalLayout_7">
+      <widget class="QTableWidget" name="tbl_transaction_history">
+       <column>
+        <property name="text">
+         <string>Transaction ID</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>Amount</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>Date</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>Time</string>
+        </property>
+       </column>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="lbl_err_transaction_history">
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_10">
        <item>
-        <layout class="QVBoxLayout" name="verticalLayout_6">
-         <item>
-          <widget class="QTableWidget" name="tbl_transaction_history">
-           <column>
-            <property name="text">
-             <string>AccountNumber</string>
-            </property>
-           </column>
-           <column>
-            <property name="text">
-             <string>Amount</string>
-            </property>
-           </column>
-           <column>
-            <property name="text">
-             <string>Date</string>
-            </property>
-           </column>
-           <column>
-            <property name="text">
-             <string>Time</string>
-            </property>
-           </column>
-          </widget>
-         </item>
-         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_10">
-           <item>
-            <widget class="QPushButton" name="pbn_view_transaction_history">
-             <property name="text">
-              <string>View Transaction history</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLineEdit" name="lnedit_act_number_transaction_history"/>
-           </item>
-          </layout>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <widget class="QLabel" name="lbl_err_transaction_history">
+        <widget class="QPushButton" name="pbn_view_transaction_history">
          <property name="text">
-          <string/>
+          <string>View Transaction history</string>
          </property>
         </widget>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="lnedit_act_number_transaction_history"/>
        </item>
       </layout>
      </item>
      <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_11">
+      <layout class="QHBoxLayout" name="horizontalLayout_9">
        <item>
         <widget class="QLabel" name="lbl_count">
          <property name="text">
@@ -156,243 +136,227 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>2</y>
-      <width>441</width>
+      <y>0</y>
+      <width>321</width>
       <height>551</height>
      </rect>
     </property>
-    <layout class="QVBoxLayout" name="verticalLayout_9">
+    <layout class="QVBoxLayout" name="verticalLayout_2">
      <item>
-      <layout class="QVBoxLayout" name="verticalLayout">
+      <widget class="QLabel" name="label_view_account_number">
+       <property name="text">
+        <string>Account Number: </string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_12">
        <item>
-        <widget class="QLabel" name="label_view_account_number">
+        <widget class="QLabel" name="label_username">
+         <property name="text">
+          <string>username:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="lineEdit_username"/>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_error">
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="pushButton_get_account_number">
+       <property name="text">
+        <string>Get Account Number</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="lbl_viewbalance">
+       <property name="text">
+        <string>Balance:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_11">
+       <item>
+        <widget class="QLabel" name="lbl_accountnumber">
          <property name="text">
           <string>Account Number: </string>
          </property>
         </widget>
        </item>
        <item>
-        <layout class="QFormLayout" name="formLayout">
-         <item row="0" column="0">
-          <widget class="QLabel" name="label_username">
-           <property name="text">
-            <string>username:</string>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="1">
-          <widget class="QLineEdit" name="lineEdit_username"/>
-         </item>
-        </layout>
+        <widget class="QLineEdit" name="lnedit_accountnumber"/>
        </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_error_viewbalance">
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="pbn_view_balance">
+       <property name="text">
+        <string>View Balance</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="lbl_accountcreation">
+       <property name="font">
+        <font>
+         <family>Times New Roman</family>
+         <pointsize>16</pointsize>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>Account Creation</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_2">
        <item>
-        <widget class="QLabel" name="label_error">
+        <widget class="QLabel" name="lbl_username_input">
          <property name="text">
-          <string/>
+          <string>Username: </string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton_get_account_number">
+        <widget class="QLineEdit" name="lnedit_username_input"/>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_3">
+       <item>
+        <widget class="QLabel" name="lbl_password">
          <property name="text">
-          <string>Get Account Number</string>
+          <string>Password: </string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="lnedit_password_input"/>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_5">
+       <item>
+        <widget class="QLabel" name="lbl_name">
+         <property name="text">
+          <string>Name: </string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="lnedit_name_input"/>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_4">
+       <item>
+        <widget class="QLabel" name="lbl_age">
+         <property name="text">
+          <string>Age: </string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="lnedit_age_input"/>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="QLabel" name="lbl_error_create">
+       <property name="text">
+        <string>Error:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_6">
+       <item>
+        <widget class="QPushButton" name="pbn_create_new_account">
+         <property name="text">
+          <string>Create New Account</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="chkbox_admin">
+         <property name="text">
+          <string>Admin</string>
          </property>
         </widget>
        </item>
       </layout>
      </item>
      <item>
-      <layout class="QVBoxLayout" name="verticalLayout_2">
+      <widget class="QLabel" name="lbl_accountdeletion">
+       <property name="font">
+        <font>
+         <family>Times New Roman</family>
+         <pointsize>16</pointsize>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>Account Deletion</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_7">
        <item>
-        <widget class="QLabel" name="lbl_viewbalance">
+        <widget class="QLabel" name="lbl_account_number_delete">
          <property name="text">
-          <string>Balance:</string>
+          <string>Account Number:   </string>
          </property>
         </widget>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout">
-         <item>
-          <widget class="QLabel" name="lbl_accountnumber">
-           <property name="text">
-            <string>Account Number: </string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="lnedit_accountnumber"/>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <widget class="QLabel" name="label_error_viewbalance">
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="pbn_view_balance">
-         <property name="text">
-          <string>View Balance</string>
-         </property>
-        </widget>
+        <widget class="QLineEdit" name="lnedit_delete_account_number"/>
        </item>
       </layout>
      </item>
      <item>
-      <layout class="QVBoxLayout" name="verticalLayout_3">
-       <item>
-        <widget class="QLabel" name="lbl_accountcreation">
-         <property name="font">
-          <font>
-           <family>Times New Roman</family>
-           <pointsize>16</pointsize>
-           <bold>true</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>Account Creation</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_2">
-         <item>
-          <widget class="QLabel" name="lbl_username_input">
-           <property name="text">
-            <string>Username: </string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="lnedit_username_input"/>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_3">
-         <item>
-          <widget class="QLabel" name="lbl_password">
-           <property name="text">
-            <string>Password: </string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="lnedit_password_input"/>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_5">
-         <item>
-          <widget class="QLabel" name="lbl_name">
-           <property name="text">
-            <string>Name: </string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="lnedit_name_input"/>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_4">
-         <item>
-          <widget class="QLabel" name="lbl_age">
-           <property name="text">
-            <string>Age: </string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="lnedit_age_input"/>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <widget class="QLabel" name="lbl_error_create">
-         <property name="text">
-          <string>Error:</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_6">
-         <item>
-          <widget class="QPushButton" name="pbn_create_new_account">
-           <property name="text">
-            <string>Create New Account</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QCheckBox" name="chkbox_admin">
-           <property name="text">
-            <string>Admin</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-      </layout>
+      <widget class="QLabel" name="lbl_error_delete">
+       <property name="text">
+        <string>Error:</string>
+       </property>
+      </widget>
      </item>
      <item>
-      <layout class="QVBoxLayout" name="verticalLayout_4">
+      <layout class="QHBoxLayout" name="horizontalLayout_8">
        <item>
-        <widget class="QLabel" name="lbl_accountdeletion">
-         <property name="font">
-          <font>
-           <family>Times New Roman</family>
-           <pointsize>16</pointsize>
-           <bold>true</bold>
-          </font>
-         </property>
+        <widget class="QPushButton" name="pbn_delete_account">
          <property name="text">
-          <string>Account Deletion</string>
+          <string>Delete Account</string>
          </property>
         </widget>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_7">
-         <item>
-          <widget class="QLabel" name="lbl_account_number_delete">
-           <property name="text">
-            <string>Account Number:   </string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="lnedit_delete_account_number"/>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <widget class="QLabel" name="lbl_error_delete">
+        <widget class="QCheckBox" name="chkbox_sure">
          <property name="text">
-          <string>Error:</string>
+          <string>Are you Sure ?</string>
          </property>
         </widget>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_8">
-         <item>
-          <widget class="QPushButton" name="pbn_delete_account">
-           <property name="text">
-            <string>Delete Account</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QCheckBox" name="chkbox_sure">
-           <property name="text">
-            <string>Are you Sure ?</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
        </item>
       </layout>
      </item>

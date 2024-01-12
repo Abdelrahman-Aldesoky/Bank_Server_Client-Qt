@@ -179,19 +179,8 @@ void RequestHandler::handleFetchAllUserDataRequest(QJsonObject &jsonObject)
 
 void RequestHandler::handleMakeTransactionRequest(QJsonObject jsonObj)
 {
-    logger.log("Handling Make Transaction Request: " + QJsonDocument(jsonObj).toJson());
-
-    // Add more logging statements here to trace the flow of execution
-
-    // Example: Log before and after calling a database operation
-    logger.log("Before calling database method");
-    // Call the appropriate method in DatabaseManager
     QJsonObject responseObj = databaseManager->makeTransaction(jsonObj, connectionName);
-    logger.log("After calling database method");
 
-    // Add more logging statements here
-
-    // Add the requestId from the original request to the response object
     responseObj["responseId"] = jsonObj["requestId"];
 
     // Convert the response object to a JSON document
@@ -206,8 +195,6 @@ void RequestHandler::handleMakeTransactionRequest(QJsonObject jsonObj)
 
 void RequestHandler::handleMakeTransferRequest(QJsonObject jsonObj)
 {
-    logger.log("Handling Make Transfer Request: " + QJsonDocument(jsonObj).toJson());
-
     // Extract transfer details from the JSON object
     qint64 fromAccountNumber = jsonObj["fromAccountNumber"].toVariant().toLongLong();
     qint64 toAccountNumber = jsonObj["toAccountNumber"].toVariant().toLongLong();
