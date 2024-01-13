@@ -18,7 +18,9 @@ void DatabaseManager::initializeDatabase()
         {
             databaseFile.close();
             logger.log("Created database file: bankdatabase.db");
-            createTables("CreateTables");
+            openConnection("Initialize Database");
+            createTables("Initialize Database");
+            closeConnection("Initialize Database");
         }
         else
         {
@@ -64,11 +66,62 @@ void DatabaseManager::closeConnection(const QString &connectionName)
     }
 }
 
+QJsonObject DatabaseManager::processRequest(QJsonObject requestJson, const QString &connectionName)
+{
+    // Extract the request ID from the request JSON
+    int requestId = requestJson["requestId"].toInt();
+
+    QJsonObject responseJson;
+
+    // Process the request based on the request ID
+    switch(requestId)
+    {
+    case 0:
+        responseJson = login(requestJson, connectionName);
+        break;
+    case 1:
+        responseJson = getAccountNumber(requestJson, connectionName);
+        break;
+    case 2:
+        responseJson = getAccountBalance(requestJson, connectionName);
+        break;
+    case 3:
+        responseJson = createNewAccount(requestJson, connectionName);
+        break;
+    case 4:
+        responseJson = deleteAccount(requestJson, connectionName);
+        break;
+    case 5:
+        responseJson = fetchAllUserData(requestJson, connectionName);
+        break;
+    case 6:
+        responseJson = makeTransaction(requestJson, connectionName);
+        break;
+    case 7:
+        responseJson = makeTransfer(requestJson, connectionName);
+        break;
+    case 8:
+        responseJson = viewTransactionHistory(requestJson, connectionName);
+        break;
+    case 9:
+        responseJson = updateUserData(requestJson, connectionName);
+        break;
+    default:
+        // Handle unknown request
+        logger.log("Unknown request");
+        break;
+    }
+
+    // Add the response ID to the response JSON
+    responseJson["responseId"] = requestId;
+
+    return responseJson;
+}
+
 bool DatabaseManager::createTables(const QString &connectionName)
 {
-    openConnection(connectionName);
     QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
-    QSqlQuery qry(dbConnection);
+    QSqlQuery query(dbConnection);
 
     // Begin transaction
     if (!dbConnection.transaction())
@@ -82,10 +135,10 @@ bool DatabaseManager::createTables(const QString &connectionName)
         "CREATE TABLE Accounts (AccountNumber INTEGER PRIMARY KEY AUTOINCREMENT,"
         " Username TEXT COLLATE NOCASE UNIQUE NOT NULL, Password TEXT NOT NULL,"
         " Admin BOOLEAN);";
-    if (!qry.exec(prep_accounts))
+    if (!query.exec(prep_accounts))
     {
         logger.log("Failed execution for Accounts table.");
-        logger.log("Error: " + qry.lastError().text());
+        logger.log("Error: " + query.lastError().text());
         dbConnection.rollback();
         return false;
     }
@@ -94,10 +147,10 @@ bool DatabaseManager::createTables(const QString &connectionName)
     const QString insert_default_admin =
         "INSERT INTO Accounts (Username, Password, Admin) "
         "VALUES ('admin', 'admin', 1);";
-    if (!qry.exec(insert_default_admin))
+    if (!query.exec(insert_default_admin))
     {
         logger.log("Failed to insert default admin account.");
-        logger.log("Error: " + qry.lastError().text());
+        logger.log("Error: " + query.lastError().text());
         dbConnection.rollback();
         return false;
     }
@@ -107,10 +160,10 @@ bool DatabaseManager::createTables(const QString &connectionName)
         "CREATE TABLE Users_Personal_Data (AccountNumber INTEGER PRIMARY KEY, Name TEXT,"
         " Age INTEGER CHECK(Age >= 18 AND Age <= 120), Balance REAL, FOREIGN KEY(AccountNumber)"
         " REFERENCES Accounts(AccountNumber));";
-    if (!qry.exec(prep_users_personal_data))
+    if (!query.exec(prep_users_personal_data))
     {
         logger.log("Failed execution for Personal Data table.");
-        logger.log("Error: " + qry.lastError().text());
+        logger.log("Error: " + query.lastError().text());
         dbConnection.rollback();
         return false;
     }
@@ -120,10 +173,10 @@ bool DatabaseManager::createTables(const QString &connectionName)
         "CREATE TABLE Transaction_History (TransactionID INTEGER PRIMARY KEY AUTOINCREMENT,"
         " AccountNumber INTEGER, Date TEXT, Time TEXT, Amount REAL, FOREIGN KEY(AccountNumber)"
         " REFERENCES Accounts(AccountNumber));";
-    if (!qry.exec(prep_transaction_history))
+    if (!query.exec(prep_transaction_history))
     {
         logger.log("Failed execution for Transaction history table.");
-        logger.log("Error: " + qry.lastError().text());
+        logger.log("Error: " + query.lastError().text());
         dbConnection.rollback();
         return false;
     }
@@ -136,22 +189,21 @@ bool DatabaseManager::createTables(const QString &connectionName)
         return false;
     }
 
-    qry.finish();
+    query.finish();
     logger.log("Created all tables successfully.");
-    closeConnection(connectionName);
 
     return true;
 }
 
-QJsonObject DatabaseManager::login(const QString &username, const QString &password, const QString &connectionName)
+QJsonObject DatabaseManager::login(QJsonObject requestJson, const QString &connectionName)
 {
     QMutexLocker locker(&mutex);
     QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
     QSqlQuery query(dbConnection);
 
-    // Create the response object and set "responseId" to 1
-    QJsonObject responseObj;
-    responseObj["responseId"] = 1;
+    // Extract the username and password from the request JSON
+    QString username = requestJson["username"].toString();
+    QString password = requestJson["password"].toString();
 
     query.prepare("SELECT AccountNumber, Admin FROM Accounts "
                   "WHERE Username = :username AND Password = :password");
@@ -160,107 +212,111 @@ QJsonObject DatabaseManager::login(const QString &username, const QString &passw
     if (!query.exec())
     {
         logger.log("Failed to execute query for login request.");
-        return responseObj;
+        return QJsonObject();
     }
+
+    QJsonObject responseJson;
 
     if (query.next())
     {
         // Login successful
-        responseObj["loginSuccess"] = true;
-        responseObj["accountNumber"] = query.value("AccountNumber").toLongLong();
-        responseObj["isAdmin"] = query.value("Admin").toBool();
-        return responseObj;
+        responseJson["loginSuccess"] = true;
+        responseJson["accountNumber"] = query.value("AccountNumber").toLongLong();
+        responseJson["isAdmin"] = query.value("Admin").toBool();
     }
     else
     {
         // Login failed
-        responseObj["loginSuccess"] = false;
-        return responseObj;
+        responseJson["loginSuccess"] = false;
     }
+
+    return responseJson;
 }
 
-QJsonObject DatabaseManager::getAccountNumber(const QString &username, const QString &connectionName)
+QJsonObject DatabaseManager::getAccountNumber(QJsonObject requestJson, const QString &connectionName)
 {
     QMutexLocker locker(&mutex);
     QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
     QSqlQuery query(dbConnection);
 
-    QJsonObject responseObj;
+    // Extract the username from the request JSON
+    QString username = requestJson["username"].toString();
 
     query.prepare("SELECT AccountNumber FROM Accounts WHERE Username = :username");
     query.bindValue(":username", username);
     if (!query.exec())
     {
         logger.log("Failed to execute query for getAccountNumber request.");
-        responseObj["userFound"] = false;
-        return responseObj;
+        return QJsonObject();
     }
+
+    QJsonObject responseJson;
 
     if (query.next())
     {
-        responseObj["accountNumber"] = query.value("AccountNumber").toLongLong();
-        responseObj["userFound"] = true;
-        return responseObj;
+        responseJson["accountNumber"] = query.value("AccountNumber").toLongLong();
+        responseJson["userFound"] = true;
     }
     else
     {
-        responseObj["userFound"] = false;
-        return responseObj;
+        responseJson["userFound"] = false;
     }
-}
 
-double DatabaseManager::getAccountBalance(qint64 accountNumber, const QString &connectionName)
+    return responseJson;
+}
+QJsonObject DatabaseManager::getAccountBalance(QJsonObject requestJson, const QString &connectionName)
 {
     QMutexLocker locker(&mutex);
     QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
     QSqlQuery query(dbConnection);
 
+    // Extract the account number from the request JSON
+    qint64 accountNumber = requestJson["accountNumber"].toVariant().toLongLong();
+
     query.prepare("SELECT Balance FROM Users_Personal_Data WHERE AccountNumber = :accountNumber");
     query.bindValue(":accountNumber", accountNumber);
 
-    if (!query.exec())
-    {
-        logger.log("Failed to execute query for getAccountBalance request.");
-        return -1.0; // Return a negative value to indicate an error
-    }
+    QJsonObject responseJson;
 
-    if (query.next())
+    if (query.exec() && query.next())
     {
-        return query.value("Balance").toDouble();
+        responseJson["balance"] = query.value("Balance").toDouble();
+        responseJson["accountFound"] = true;
     }
     else
     {
-        return -1.0; // Return a negative value to indicate account not found
+        responseJson["accountFound"] = false;
     }
+
+    return responseJson;
 }
 
-QJsonObject DatabaseManager::createNewAccount(const QJsonObject &jsonObject,
-                                              const QString &connectionName)
+QJsonObject DatabaseManager::createNewAccount(QJsonObject requestJson, const QString &connectionName)
 {
     QMutexLocker locker(&mutex);
-    QJsonObject responseObj;
-    responseObj["responseId"] = 3;
-
-    bool isAdmin = jsonObject["isAdmin"].toBool();
-    QString username = jsonObject["username"].toString();
-    QString password = jsonObject["password"].toString();
-    QString name = jsonObject["name"].toString();
-    int age = jsonObject["age"].toInt();
-    double balance = 0.0;
-
     QSqlDatabase db = QSqlDatabase::database(connectionName);
     db.transaction();
+
+    // Extract the necessary data from the request JSON
+    bool isAdmin = requestJson["isAdmin"].toBool();
+    QString username = requestJson["username"].toString();
+    QString password = requestJson["password"].toString();
+    QString name = requestJson["name"].toString();
+    int age = requestJson["age"].toInt();
+    double balance = 0.0;
 
     QSqlQuery checkQuery(db);
     checkQuery.prepare("SELECT COUNT(*) FROM Accounts WHERE Username = :username");
     checkQuery.bindValue(":username", username);
 
+    QJsonObject responseJson;
+
     if (checkQuery.exec() && checkQuery.next() && checkQuery.value(0).toInt() > 0)
     {
-        responseObj["createAccountSuccess"] = false;
-        responseObj["errorMessage"] = "exists";
+        responseJson["createAccountSuccess"] = false;
+        responseJson["errorMessage"] = "exists";
         db.rollback();
-        return responseObj;
+        return responseJson;
     }
 
     QSqlQuery insertQuery(db);
@@ -271,10 +327,10 @@ QJsonObject DatabaseManager::createNewAccount(const QJsonObject &jsonObject,
 
     if (!insertQuery.exec())
     {
-        responseObj["createAccountSuccess"] = false;
-        responseObj["errorMessage"] = "failed";
+        responseJson["createAccountSuccess"] = false;
+        responseJson["errorMessage"] = "failed";
         db.rollback();
-        return responseObj;
+        return responseJson;
     }
 
     qint64 accountNumber = insertQuery.lastInsertId().toLongLong();
@@ -289,39 +345,45 @@ QJsonObject DatabaseManager::createNewAccount(const QJsonObject &jsonObject,
 
     if (!personalDataQuery.exec())
     {
-        responseObj["createAccountSuccess"] = false;
-        responseObj["errorMessage"] = "failed";
+        responseJson["createAccountSuccess"] = false;
+        responseJson["errorMessage"] = "failed";
         db.rollback();
-        return responseObj;
+        return responseJson;
     }
 
     db.commit();
-    responseObj["createAccountSuccess"] = true;
-    responseObj["accountNumber"] = accountNumber;
-    return responseObj;
+    responseJson["createAccountSuccess"] = true;
+    responseJson["accountNumber"] = accountNumber;
+    return responseJson;
 }
 
-bool DatabaseManager::deleteAccount(qint64 accountNumber, const QString &connectionName)
+QJsonObject DatabaseManager::deleteAccount(QJsonObject requestJson, const QString &connectionName)
 {
     QMutexLocker locker(&mutex);
     QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
+
+    // Extract the account number from the request JSON
+    qint64 accountNumber = requestJson["accountNumber"].toVariant().toLongLong();
 
     // Start a transaction
     if (!dbConnection.transaction())
     {
         logger.log("Failed to start transaction.");
-        return false;
+        return QJsonObject();
     }
 
     QSqlQuery deleteQuery(dbConnection);
     deleteQuery.prepare("DELETE FROM Accounts WHERE AccountNumber = :accountNumber");
     deleteQuery.bindValue(":accountNumber", accountNumber);
 
+    QJsonObject responseJson;
+
     if (!deleteQuery.exec())
     {
         logger.log("Failed to delete account from Accounts table.");
         dbConnection.rollback();
-        return false;
+        responseJson["deleteAccountSuccess"] = false;
+        return responseJson;
     }
 
     QSqlQuery deletePersonalDataQuery(dbConnection);
@@ -332,7 +394,8 @@ bool DatabaseManager::deleteAccount(qint64 accountNumber, const QString &connect
     {
         logger.log("Failed to delete account from Users_Personal_Data table.");
         dbConnection.rollback();
-        return false;
+        responseJson["deleteAccountSuccess"] = false;
+        return responseJson;
     }
 
     QSqlQuery deleteTransactionQuery(dbConnection);
@@ -346,17 +409,17 @@ bool DatabaseManager::deleteAccount(qint64 accountNumber, const QString &connect
     if (!dbConnection.commit())
     {
         logger.log("Failed to commit transaction.");
-        return false;
+        responseJson["deleteAccountSuccess"] = false;
+        return responseJson;
     }
 
-    return true;
+    responseJson["deleteAccountSuccess"] = true;
+    return responseJson;
 }
 
-QJsonObject DatabaseManager::fetchAllUserData(const QString &connectionName)
+QJsonObject DatabaseManager::fetchAllUserData(QJsonObject requestJson, const QString &connectionName)
 {
     QMutexLocker locker(&mutex);
-    QJsonObject responseObj;
-
     QSqlDatabase db = QSqlDatabase::database(connectionName);
 
     QSqlQuery fetchAllUserDataQuery(db);
@@ -365,11 +428,13 @@ QJsonObject DatabaseManager::fetchAllUserData(const QString &connectionName)
                                   "FROM Accounts JOIN Users_Personal_Data "
                                   "ON Accounts.AccountNumber = Users_Personal_Data.AccountNumber");
 
+    QJsonObject responseJson;
+
     if (!fetchAllUserDataQuery.exec())
     {
-        responseObj["fetchUserDataSuccess"] = false;
-        responseObj["errorMessage"] = "failed";
-        return responseObj;
+        responseJson["fetchUserDataSuccess"] = false;
+        responseJson["errorMessage"] = "failed";
+        return responseJson;
     }
 
     // Create a JSON array to store user data
@@ -387,31 +452,33 @@ QJsonObject DatabaseManager::fetchAllUserData(const QString &connectionName)
         userDataArray.append(userData);
     }
 
-    responseObj["fetchUserDataSuccess"] = true;
-    responseObj["userData"] = userDataArray;
+    responseJson["fetchUserDataSuccess"] = true;
+    responseJson["userData"] = userDataArray;
 
-    return responseObj;
+    return responseJson;
 }
-
-QJsonObject DatabaseManager::makeTransaction(const QJsonObject &jsonObject, const QString &connectionName)
+QJsonObject DatabaseManager::makeTransaction(QJsonObject requestJson, const QString &connectionName)
 {
-    QJsonObject responseObj;
-    qint64 accountNumber = jsonObject["accountNumber"].toVariant().toLongLong();
-    double amount = jsonObject["amount"].toDouble();
-    // Check if the balance is sufficient
-    double currentBalance = getAccountBalance(accountNumber, connectionName);
-
     QMutexLocker locker(&mutex);
-
     QSqlDatabase db = QSqlDatabase::database(connectionName);
     db.transaction();
 
+    // Extract the necessary data from the request JSON
+    qint64 accountNumber = requestJson["accountNumber"].toVariant().toLongLong();
+    double amount = requestJson["amount"].toDouble();
+
+    // Check if the balance is sufficient
+    QJsonObject balanceObj = getAccountBalance(requestJson, connectionName);
+    double currentBalance = balanceObj["balance"].toDouble();
+
+    QJsonObject responseJson;
+
     if (currentBalance < 0 || currentBalance + amount < 0)
     {
-        responseObj["transactionSuccess"] = false;
-        responseObj["errorMessage"] = "Insufficient balance";
+        responseJson["transactionSuccess"] = false;
+        responseJson["errorMessage"] = "Insufficient balance";
         db.rollback();
-        return responseObj;
+        return responseJson;
     }
 
     // Update the balance
@@ -423,10 +490,10 @@ QJsonObject DatabaseManager::makeTransaction(const QJsonObject &jsonObject, cons
 
     if (!updateBalanceQuery.exec())
     {
-        responseObj["transactionSuccess"] = false;
-        responseObj["errorMessage"] = "Failed to update balance";
+        responseJson["transactionSuccess"] = false;
+        responseJson["errorMessage"] = "Failed to update balance";
         db.rollback();
-        return responseObj;
+        return responseJson;
     }
 
     // Log the transaction in the Transaction_History table
@@ -444,119 +511,128 @@ QJsonObject DatabaseManager::makeTransaction(const QJsonObject &jsonObject, cons
 
     if (!logTransactionQuery.exec())
     {
-        responseObj["transactionSuccess"] = false;
-        responseObj["errorMessage"] = "Failed to log transaction";
+        responseJson["transactionSuccess"] = false;
+        responseJson["errorMessage"] = "Failed to log transaction";
         db.rollback();
-        return responseObj;
+        return responseJson;
     }
 
     db.commit();
-    responseObj["transactionSuccess"] = true;
-    responseObj["newBalance"] = newBalance;
+    responseJson["transactionSuccess"] = true;
+    responseJson["newBalance"] = newBalance;
 
-    return responseObj;
+    return responseJson;
 }
 
-
-QJsonObject DatabaseManager::makeTransfer(qint64 fromAccountNumber, qint64 toAccountNumber, double amount, const QString &connectionName)
+QJsonObject DatabaseManager::makeTransfer(QJsonObject requestJson, const QString &connectionName)
 {
-    QJsonObject responseObj;
+    QMutexLocker locker(&mutex);
+    QSqlDatabase db = QSqlDatabase::database(connectionName);
+    db.transaction();
+
+    // Extract the necessary data from the request JSON
+    qint64 fromAccountNumber = requestJson["fromAccountNumber"].toVariant().toLongLong();
+    qint64 toAccountNumber = requestJson["toAccountNumber"].toVariant().toLongLong();
+    double amount = requestJson["amount"].toDouble();
 
     // Check if the 'from' account has sufficient balance
-    double fromAccountBalance = getAccountBalance(fromAccountNumber, connectionName);
+    QJsonObject fromBalanceObj = getAccountBalance(requestJson, connectionName);
+    double fromAccountBalance = fromBalanceObj["balance"].toDouble();
+
+    QJsonObject responseJson;
 
     if (fromAccountBalance < 0 || fromAccountBalance - amount < 0)
     {
-        responseObj["transferSuccess"] = false;
-        responseObj["errorMessage"] = "Insufficient balance for the transfer";
-        return responseObj;
+        responseJson["transferSuccess"] = false;
+        responseJson["errorMessage"] = "Insufficient balance for the transfer";
+        db.rollback();
+        return responseJson;
     }
 
-    // Update the 'from' account balance
+    // Update the 'from' and 'to' account balances
     double newFromBalance = fromAccountBalance - amount;
-    QSqlDatabase db = QSqlDatabase::database(connectionName);
-    QSqlQuery updateFromBalanceQuery(db);
-    updateFromBalanceQuery.prepare("UPDATE Users_Personal_Data SET Balance = :balance WHERE AccountNumber = :accountNumber");
-    updateFromBalanceQuery.bindValue(":balance", newFromBalance);
-    updateFromBalanceQuery.bindValue(":accountNumber", fromAccountNumber);
+    QJsonObject toBalanceObj = getAccountBalance(requestJson, connectionName);
+    double newToBalance = toBalanceObj["balance"].toDouble() + amount;
 
-    if (!updateFromBalanceQuery.exec())
+    QSqlQuery updateBalanceQuery(db);
+    updateBalanceQuery.prepare("UPDATE Users_Personal_Data SET Balance = :balance WHERE AccountNumber = :accountNumber");
+    updateBalanceQuery.bindValue(":balance", newFromBalance);
+    updateBalanceQuery.bindValue(":accountNumber", fromAccountNumber);
+
+    if (!updateBalanceQuery.exec())
     {
-        responseObj["transferSuccess"] = false;
-        responseObj["errorMessage"] = "Failed to update 'from' account balance";
-        return responseObj;
+        responseJson["transferSuccess"] = false;
+        responseJson["errorMessage"] = "Failed to update 'from' account balance";
+        db.rollback();
+        return responseJson;
     }
 
-    // Update the 'to' account balance
-    double toAccountBalance = getAccountBalance(toAccountNumber, connectionName);
-    QMutexLocker locker(&mutex);
-    double newToBalance = toAccountBalance + amount;
-    QSqlQuery updateToBalanceQuery(db);
-    updateToBalanceQuery.prepare("UPDATE Users_Personal_Data SET Balance = :balance WHERE AccountNumber = :accountNumber");
-    updateToBalanceQuery.bindValue(":balance", newToBalance);
-    updateToBalanceQuery.bindValue(":accountNumber", toAccountNumber);
+    updateBalanceQuery.bindValue(":balance", newToBalance);
+    updateBalanceQuery.bindValue(":accountNumber", toAccountNumber);
 
-    if (!updateToBalanceQuery.exec())
+    if (!updateBalanceQuery.exec())
     {
-        responseObj["transferSuccess"] = false;
-        responseObj["errorMessage"] = "Failed to update 'to' account balance";
-        return responseObj;
+        responseJson["transferSuccess"] = false;
+        responseJson["errorMessage"] = "Failed to update 'to' account balance";
+        db.rollback();
+        return responseJson;
     }
 
-    // Log the transfer in the Transaction_History table for 'from' account
+    // Log the transfer in the Transaction_History table for both 'from' and 'to' accounts
     QDateTime currentDateTime = QDateTime::currentDateTime();
     QString formattedDate = currentDateTime.toString("dd-MM-yyyy");
     QString formattedTime = currentDateTime.toString("hh:mm:ss");
 
-    QSqlQuery logFromTransactionQuery(db);
-    logFromTransactionQuery.prepare("INSERT INTO Transaction_History (AccountNumber, Date, Time, Amount) "
-                                    "VALUES (:accountNumber, :date, :time, :amount)");
-    logFromTransactionQuery.bindValue(":accountNumber", fromAccountNumber);
-    logFromTransactionQuery.bindValue(":date", formattedDate);
-    logFromTransactionQuery.bindValue(":time", formattedTime);
-    logFromTransactionQuery.bindValue(":amount", -amount); // Negative amount for 'from' account
+    QSqlQuery logTransactionQuery(db);
+    logTransactionQuery.prepare("INSERT INTO Transaction_History (AccountNumber, Date, Time, Amount) "
+                                "VALUES (:accountNumber, :date, :time, :amount)");
+    logTransactionQuery.bindValue(":accountNumber", fromAccountNumber);
+    logTransactionQuery.bindValue(":date", formattedDate);
+    logTransactionQuery.bindValue(":time", formattedTime);
+    logTransactionQuery.bindValue(":amount", -amount); // Negative amount for 'from' account
 
-    if (!logFromTransactionQuery.exec())
+    if (!logTransactionQuery.exec())
     {
-        responseObj["transferSuccess"] = false;
-        responseObj["errorMessage"] = "Failed to log 'from' account transaction";
-        return responseObj;
+        responseJson["transferSuccess"] = false;
+        responseJson["errorMessage"] = "Failed to log 'from' account transaction";
+        db.rollback();
+        return responseJson;
     }
 
-    // Log the transfer in the Transaction_History table for 'to' account
-    QSqlQuery logToTransactionQuery(db);
-    logToTransactionQuery.prepare("INSERT INTO Transaction_History (AccountNumber, Date, Time, Amount) "
-                                  "VALUES (:accountNumber, :date, :time, :amount)");
-    logToTransactionQuery.bindValue(":accountNumber", toAccountNumber);
-    logToTransactionQuery.bindValue(":date", formattedDate);
-    logToTransactionQuery.bindValue(":time", formattedTime);
-    logToTransactionQuery.bindValue(":amount", amount); // Positive amount for 'to' account
+    logTransactionQuery.bindValue(":accountNumber", toAccountNumber);
+    logTransactionQuery.bindValue(":amount", amount); // Positive amount for 'to' account
 
-    if (!logToTransactionQuery.exec())
+    if (!logTransactionQuery.exec())
     {
-        responseObj["transferSuccess"] = false;
-        responseObj["errorMessage"] = "Failed to log 'to' account transaction";
-        return responseObj;
+        responseJson["transferSuccess"] = false;
+        responseJson["errorMessage"] = "Failed to log 'to' account transaction";
+        db.rollback();
+        return responseJson;
     }
 
-    responseObj["transferSuccess"] = true;
-    responseObj["newFromBalance"] = newFromBalance;
-    responseObj["newToBalance"] = newToBalance;
+    db.commit();
+    responseJson["transferSuccess"] = true;
+    responseJson["newFromBalance"] = newFromBalance;
+    responseJson["newToBalance"] = newToBalance;
 
-    return responseObj;
+    return responseJson;
 }
 
-QJsonArray DatabaseManager::viewTransactionHistory(qint64 accountNumber, const QString &connectionName)
+QJsonObject DatabaseManager::viewTransactionHistory(QJsonObject requestJson, const QString &connectionName)
 {
     QMutexLocker locker(&mutex);
     QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
     QSqlQuery query(dbConnection);
+
+    // Extract the account number from the request JSON
+    qint64 accountNumber = requestJson["accountNumber"].toVariant().toLongLong();
 
     query.prepare("SELECT TransactionID, Date, Time, Amount FROM Transaction_History "
                   "WHERE AccountNumber = :accountNumber ORDER BY Date DESC, Time DESC");
 
     query.bindValue(":accountNumber", accountNumber);
 
+    QJsonObject responseJson;
     QJsonArray transactionHistoryArray;
 
     if (query.exec())
@@ -573,23 +649,26 @@ QJsonArray DatabaseManager::viewTransactionHistory(qint64 accountNumber, const Q
         }
     }
 
-    return transactionHistoryArray;
+    responseJson["transactionHistory"] = transactionHistoryArray;
+    return responseJson;
 }
 
-QJsonObject DatabaseManager::updateUserData(const QJsonObject &jsonObject, const QString &connectionName)
+QJsonObject DatabaseManager::updateUserData(QJsonObject requestJson, const QString &connectionName)
 {
     QMutexLocker locker(&mutex);
     QSqlDatabase db = QSqlDatabase::database(connectionName);
-    QJsonObject responseObj;
 
-    QString username = jsonObject["username"].toString();
-    QString name = jsonObject["name"].toString();
-    QString password = jsonObject["password"].toString();
+    // Extract the necessary data from the request JSON
+    QString username = requestJson["username"].toString();
+    QString name = requestJson["name"].toString();
+    QString password = requestJson["password"].toString();
 
     // Check if the account exists and get the account number
     QSqlQuery checkQuery(db);
     checkQuery.prepare("SELECT AccountNumber FROM Accounts WHERE Username = :username");
     checkQuery.bindValue(":username", username);
+
+    QJsonObject responseJson;
 
     if (checkQuery.exec() && checkQuery.next())
     {
@@ -604,9 +683,9 @@ QJsonObject DatabaseManager::updateUserData(const QJsonObject &jsonObject, const
             updateQuery.bindValue(":password", password);
             if (!updateQuery.exec())
             {
-                responseObj["updateSuccess"] = false;
-                responseObj["errorMessage"] = "Failed to update password";
-                return responseObj;
+                responseJson["updateSuccess"] = false;
+                responseJson["errorMessage"] = "Failed to update password";
+                return responseJson;
             }
         }
 
@@ -618,20 +697,20 @@ QJsonObject DatabaseManager::updateUserData(const QJsonObject &jsonObject, const
             updateQuery.bindValue(":name", name);
             if (!updateQuery.exec())
             {
-                responseObj["updateSuccess"] = false;
-                responseObj["errorMessage"] = "Failed to update name";
-                return responseObj;
+                responseJson["updateSuccess"] = false;
+                responseJson["errorMessage"] = "Failed to update name";
+                return responseJson;
             }
         }
 
-        responseObj["updateSuccess"] = true;
+        responseJson["updateSuccess"] = true;
     }
     else
     {
         // The account does not exist
-        responseObj["updateSuccess"] = false;
-        responseObj["errorMessage"] = "Account not found";
+        responseJson["updateSuccess"] = false;
+        responseJson["errorMessage"] = "Account not found";
     }
 
-    return responseObj;
+    return responseJson;
 }

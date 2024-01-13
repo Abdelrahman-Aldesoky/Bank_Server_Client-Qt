@@ -1,28 +1,26 @@
 #ifndef CLIENTRUNNABLE_H
 #define CLIENTRUNNABLE_H
 
-#include <QCoreApplication>
 #include <QObject>
-#include <QTcpSocket>
 #include <QThread>
-
-#include "databasemanager.h"
-#include "requesthandler.h"
+#include <QTcpSocket>
+#include "RequestHandler.h"
 #include "Logger.h"
 
-class ClientRunnable : public QThread
+class ClientRunnable : public QObject
 {
     Q_OBJECT
 
 public:
     ClientRunnable(qintptr socketDescriptor, QObject *parent = nullptr);
-    ~ClientRunnable() override;
-    void run() override;
+    ~ClientRunnable();
+
+public slots:
+    void run();
     void readyRead();
     void sendResponseToClient(QByteArray responseData);
 
 signals:
-    void clientConnected(qintptr socketDescriptor);
     void clientDisconnected(qintptr socketDescriptor);
 
 private slots:
@@ -30,8 +28,7 @@ private slots:
 
 private:
     qintptr socketDescriptor;
-    QTcpSocket *clientSocket;
-    DatabaseManager *databaseManager;
+    QTcpSocket *clientSocket = nullptr;
     Logger logger;
 };
 

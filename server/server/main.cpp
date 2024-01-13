@@ -16,6 +16,7 @@ int main(int argc, char *argv[])
     DatabaseManager databaseManager(&a);
     databaseManager.initializeDatabase();
 
+    // Create the Server object
     Server server(&a);
 
     Logger mainLogger("Main");

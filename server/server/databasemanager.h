@@ -1,7 +1,6 @@
 #ifndef DATABASEMANAGER_H
 #define DATABASEMANAGER_H
 
-#include <QSettings>
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QSqlError>
@@ -26,29 +25,22 @@ public:
     bool openConnection(const QString &connectionName);
     void closeConnection(const QString &connectionName);
     bool createTables(const QString &connectionName);
-    QJsonObject login(const QString &username,
-                      const QString &password,
-                      const QString &connectionName);
-    QJsonObject getAccountNumber(const QString &username,
-                                 const QString &connectionName);
-    double getAccountBalance(qint64 accountNumber,
-                             const QString &connectionName);
-    QJsonObject createNewAccount(const QJsonObject &jsonObject,
-                                 const QString &connectionName);
-    bool deleteAccount(qint64 accountNumber, const QString &connectionName);
-    QJsonObject fetchAllUserData(const QString &connectionName);
-    QJsonObject makeTransaction(const QJsonObject &jsonObject,
-                                const QString &connectionName);
-    QJsonObject makeTransfer(qint64 fromAccountNumber, qint64 toAccountNumber,
-                             double amount, const QString &connectionName);
-    QJsonArray viewTransactionHistory(qint64 accountNumber,
-                                      const QString &connectionName);
-    QJsonObject updateUserData(const QJsonObject &jsonObject,
-                                                const QString &connectionName);
+    QJsonObject processRequest(QJsonObject requestJson, const QString &connectionName);
 
 private:
     QMutex mutex;
     Logger logger;
+
+    QJsonObject login(QJsonObject requestJson, const QString &connectionName);
+    QJsonObject getAccountNumber(QJsonObject requestJson, const QString &connectionName);
+    QJsonObject getAccountBalance(QJsonObject requestJson, const QString &connectionName);
+    QJsonObject createNewAccount(QJsonObject requestJson, const QString &connectionName);
+    QJsonObject deleteAccount(QJsonObject requestJson, const QString &connectionName);
+    QJsonObject fetchAllUserData(QJsonObject requestJson, const QString &connectionName);
+    QJsonObject makeTransaction(QJsonObject requestJson, const QString &connectionName);
+    QJsonObject makeTransfer(QJsonObject requestJson, const QString &connectionName);
+    QJsonObject viewTransactionHistory(QJsonObject requestJson, const QString &connectionName);
+    QJsonObject updateUserData(QJsonObject requestJson, const QString &connectionName);
 };
 
 #endif // DATABASEMANAGER_H
