@@ -13,6 +13,7 @@ Server::Server(QObject *parent)
 
 Server::~Server()
 {
+    //just to be sure
     for (auto it = clientThreads.begin(); it != clientThreads.end(); ++it)
     {
         it.value()->quit();

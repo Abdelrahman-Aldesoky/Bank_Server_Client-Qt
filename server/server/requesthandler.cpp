@@ -26,7 +26,8 @@ RequestHandler::~RequestHandler()
 
 QByteArray RequestHandler::handleRequest(QByteArray requestData)
 {
-    logger.log("Processing Request: " + QString(requestData));
+    //"not needed anymore they were just for debugging" faster performance
+    //logger.log("Processing Request: " + QString(requestData));
 
     // Convert the received data to a JSON document
     QJsonDocument jsonDoc = QJsonDocument::fromJson(requestData);
@@ -43,8 +44,8 @@ QByteArray RequestHandler::handleRequest(QByteArray requestData)
     // Convert the JSON document to a byte array
     QByteArray responseData = jsonResponse.toJson();
 
-    // Log the response data
-    logger.log("Returning Response: " + QString(responseData));
+    // Log the response data "not needed anymore they were just for debugging" faster performance
+    //logger.log("Returning Response: " + QString(responseData));
 
     // Return the response data
     return responseData;

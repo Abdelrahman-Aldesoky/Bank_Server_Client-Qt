@@ -29,7 +29,7 @@ void AdminWindow::readyRead()
     // Read the response from the server
     QByteArray responseData = socket->readAll();
 
-    qDebug() << "Raw Response Data:" << responseData;
+    //qDebug() << "Raw Response Data:" << responseData;
 
 
     QJsonDocument jsonResponse = QJsonDocument::fromJson(responseData);

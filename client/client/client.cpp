@@ -96,7 +96,7 @@ void client::readyRead()
         qDebug() << "Unknown responseId ID: " << responseId;
         break;
     }
-    qDebug() << responseData;
+   // qDebug() << responseData;
 }
 
 // Slot for handling login button click
