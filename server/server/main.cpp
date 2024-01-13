@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
     signal(SIGINT, handleSignal);
 
     // Initialize the database
-    DatabaseManager databaseManager(&a);
+    DatabaseManager databaseManager("InitializeDatabase",&a);
     databaseManager.initializeDatabase();
 
     // Create the Server object

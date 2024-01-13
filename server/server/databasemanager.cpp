@@ -1,8 +1,47 @@
 #include "DatabaseManager.h"
 
-DatabaseManager::DatabaseManager(QObject *parent)
-    : QObject(parent), logger("DatabaseManager")
-{}
+DatabaseManager::DatabaseManager(const QString &connectionName, QObject *parent)
+    : QObject(parent), connectionName(connectionName), logger("DatabaseManager")
+{
+    logger.log("DatabaseManager Object Created.");
+    QSqlDatabase dbConnection = QSqlDatabase::addDatabase("QSQLITE", connectionName);
+    dbConnection.setDatabaseName("bankdatabase.db");
+}
+
+DatabaseManager::~DatabaseManager()
+{
+    QSqlDatabase::removeDatabase(connectionName);
+    logger.log("DatabaseManager Object Destroyed.");
+}
+
+bool DatabaseManager::openConnection()
+{
+    QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
+    if (!dbConnection.open())
+    {
+        logger.log(QString("Failed to Open database connection '%1'").arg(connectionName));
+        return false;
+    }
+
+    logger.log(QString("Opened database connection '%1'").arg(connectionName));
+    return true;
+}
+
+void DatabaseManager::closeConnection()
+{
+    QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
+
+    if (dbConnection.isOpen())
+    {
+        dbConnection.close();
+        logger.log(QString("Closed database connection '%1'").arg(connectionName));
+    }
+    else
+    {
+        logger.log(QString("Database connection '%1' is not open.").arg(connectionName));
+    }
+}
+
 
 void DatabaseManager::initializeDatabase()
 {
@@ -18,9 +57,9 @@ void DatabaseManager::initializeDatabase()
         {
             databaseFile.close();
             logger.log("Created database file: bankdatabase.db");
-            openConnection("Initialize Database");
-            createTables("Initialize Database");
-            closeConnection("Initialize Database");
+            openConnection();
+            createTables();
+            closeConnection();
         }
         else
         {
@@ -29,44 +68,7 @@ void DatabaseManager::initializeDatabase()
     }
 }
 
-DatabaseManager::~DatabaseManager()
-{
-    logger.log("DatabaseManager object destroyed.");
-}
-
-bool DatabaseManager::openConnection(const QString &connectionName)
-{
-    QMutexLocker locker(&mutex);
-    QSqlDatabase dbConnection = QSqlDatabase::addDatabase("QSQLITE", connectionName);
-    dbConnection.setDatabaseName("bankdatabase.db");
-
-    if (!dbConnection.open())
-    {
-        logger.log(QString("Failed to Open database connection '%1'").arg(connectionName));
-        return false;
-    }
-
-    logger.log(QString("Opened database connection '%1'").arg(connectionName));
-    return true;
-}
-
-void DatabaseManager::closeConnection(const QString &connectionName)
-{
-    QMutexLocker locker(&mutex);
-    QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
-
-    if (dbConnection.isOpen())
-    {
-        dbConnection.close();
-        logger.log(QString("Closed database connection '%1'").arg(connectionName));
-    }
-    else
-    {
-        logger.log(QString("Database connection '%1' is not open.").arg(connectionName));
-    }
-}
-
-QJsonObject DatabaseManager::processRequest(QJsonObject requestJson, const QString &connectionName)
+QJsonObject DatabaseManager::processRequest(QJsonObject requestJson)
 {
     // Extract the request ID from the request JSON
     int requestId = requestJson["requestId"].toInt();
@@ -77,34 +79,34 @@ QJsonObject DatabaseManager::processRequest(QJsonObject requestJson, const QStri
     switch(requestId)
     {
     case 0:
-        responseJson = login(requestJson, connectionName);
+        responseJson = login(requestJson);
         break;
     case 1:
-        responseJson = getAccountNumber(requestJson, connectionName);
+        responseJson = getAccountNumber(requestJson);
         break;
     case 2:
-        responseJson = getAccountBalance(requestJson, connectionName);
+        responseJson = getAccountBalance(requestJson);
         break;
     case 3:
-        responseJson = createNewAccount(requestJson, connectionName);
+        responseJson = createNewAccount(requestJson);
         break;
     case 4:
-        responseJson = deleteAccount(requestJson, connectionName);
+        responseJson = deleteAccount(requestJson);
         break;
     case 5:
-        responseJson = fetchAllUserData(requestJson, connectionName);
+        responseJson = fetchAllUserData(requestJson);
         break;
     case 6:
-        responseJson = makeTransaction(requestJson, connectionName);
+        responseJson = makeTransaction(requestJson);
         break;
     case 7:
-        responseJson = makeTransfer(requestJson, connectionName);
+        responseJson = makeTransfer(requestJson);
         break;
     case 8:
-        responseJson = viewTransactionHistory(requestJson, connectionName);
+        responseJson = viewTransactionHistory(requestJson);
         break;
     case 9:
-        responseJson = updateUserData(requestJson, connectionName);
+        responseJson = updateUserData(requestJson);
         break;
     default:
         // Handle unknown request
@@ -118,7 +120,7 @@ QJsonObject DatabaseManager::processRequest(QJsonObject requestJson, const QStri
     return responseJson;
 }
 
-bool DatabaseManager::createTables(const QString &connectionName)
+bool DatabaseManager::createTables()
 {
     QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
     QSqlQuery query(dbConnection);
@@ -127,6 +129,7 @@ bool DatabaseManager::createTables(const QString &connectionName)
     if (!dbConnection.transaction())
     {
         logger.log("Failed to start a transaction for table creation.");
+        query.finish();
         return false;
     }
 
@@ -140,6 +143,7 @@ bool DatabaseManager::createTables(const QString &connectionName)
         logger.log("Failed execution for Accounts table.");
         logger.log("Error: " + query.lastError().text());
         dbConnection.rollback();
+        query.finish();
         return false;
     }
 
@@ -152,6 +156,7 @@ bool DatabaseManager::createTables(const QString &connectionName)
         logger.log("Failed to insert default admin account.");
         logger.log("Error: " + query.lastError().text());
         dbConnection.rollback();
+        query.finish();
         return false;
     }
 
@@ -165,6 +170,7 @@ bool DatabaseManager::createTables(const QString &connectionName)
         logger.log("Failed execution for Personal Data table.");
         logger.log("Error: " + query.lastError().text());
         dbConnection.rollback();
+        query.finish();
         return false;
     }
 
@@ -178,6 +184,7 @@ bool DatabaseManager::createTables(const QString &connectionName)
         logger.log("Failed execution for Transaction history table.");
         logger.log("Error: " + query.lastError().text());
         dbConnection.rollback();
+        query.finish();
         return false;
     }
 
@@ -186,6 +193,7 @@ bool DatabaseManager::createTables(const QString &connectionName)
     {
         logger.log("Failed to commit transaction for table creation.");
         dbConnection.rollback();
+        query.finish();
         return false;
     }
 
@@ -195,7 +203,7 @@ bool DatabaseManager::createTables(const QString &connectionName)
     return true;
 }
 
-QJsonObject DatabaseManager::login(QJsonObject requestJson, const QString &connectionName)
+QJsonObject DatabaseManager::login(QJsonObject requestJson)
 {
     QMutexLocker locker(&mutex);
     QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
@@ -212,6 +220,7 @@ QJsonObject DatabaseManager::login(QJsonObject requestJson, const QString &conne
     if (!query.exec())
     {
         logger.log("Failed to execute query for login request.");
+        query.finish();
         return QJsonObject();
     }
 
@@ -229,11 +238,12 @@ QJsonObject DatabaseManager::login(QJsonObject requestJson, const QString &conne
         // Login failed
         responseJson["loginSuccess"] = false;
     }
+    query.finish();
 
     return responseJson;
 }
 
-QJsonObject DatabaseManager::getAccountNumber(QJsonObject requestJson, const QString &connectionName)
+QJsonObject DatabaseManager::getAccountNumber(QJsonObject requestJson)
 {
     QMutexLocker locker(&mutex);
     QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
@@ -264,7 +274,8 @@ QJsonObject DatabaseManager::getAccountNumber(QJsonObject requestJson, const QSt
 
     return responseJson;
 }
-QJsonObject DatabaseManager::getAccountBalance(QJsonObject requestJson, const QString &connectionName)
+
+QJsonObject DatabaseManager::getAccountBalance(QJsonObject requestJson)
 {
     QMutexLocker locker(&mutex);
     QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
@@ -291,7 +302,7 @@ QJsonObject DatabaseManager::getAccountBalance(QJsonObject requestJson, const QS
     return responseJson;
 }
 
-QJsonObject DatabaseManager::createNewAccount(QJsonObject requestJson, const QString &connectionName)
+QJsonObject DatabaseManager::createNewAccount(QJsonObject requestJson)
 {
     QMutexLocker locker(&mutex);
     QSqlDatabase db = QSqlDatabase::database(connectionName);
@@ -357,7 +368,7 @@ QJsonObject DatabaseManager::createNewAccount(QJsonObject requestJson, const QSt
     return responseJson;
 }
 
-QJsonObject DatabaseManager::deleteAccount(QJsonObject requestJson, const QString &connectionName)
+QJsonObject DatabaseManager::deleteAccount(QJsonObject requestJson)
 {
     QMutexLocker locker(&mutex);
     QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
@@ -417,7 +428,7 @@ QJsonObject DatabaseManager::deleteAccount(QJsonObject requestJson, const QStrin
     return responseJson;
 }
 
-QJsonObject DatabaseManager::fetchAllUserData(QJsonObject requestJson, const QString &connectionName)
+QJsonObject DatabaseManager::fetchAllUserData(QJsonObject requestJson)
 {
     QMutexLocker locker(&mutex);
     QSqlDatabase db = QSqlDatabase::database(connectionName);
@@ -457,7 +468,8 @@ QJsonObject DatabaseManager::fetchAllUserData(QJsonObject requestJson, const QSt
 
     return responseJson;
 }
-QJsonObject DatabaseManager::makeTransaction(QJsonObject requestJson, const QString &connectionName)
+
+QJsonObject DatabaseManager::makeTransaction(QJsonObject requestJson)
 {
     QMutexLocker locker(&mutex);
     QSqlDatabase db = QSqlDatabase::database(connectionName);
@@ -467,8 +479,10 @@ QJsonObject DatabaseManager::makeTransaction(QJsonObject requestJson, const QStr
     qint64 accountNumber = requestJson["accountNumber"].toVariant().toLongLong();
     double amount = requestJson["amount"].toDouble();
 
+    locker.unlock();
     // Check if the balance is sufficient
-    QJsonObject balanceObj = getAccountBalance(requestJson, connectionName);
+    QJsonObject balanceObj = getAccountBalance(requestJson);
+    locker.relock();
     double currentBalance = balanceObj["balance"].toDouble();
 
     QJsonObject responseJson;
@@ -524,7 +538,7 @@ QJsonObject DatabaseManager::makeTransaction(QJsonObject requestJson, const QStr
     return responseJson;
 }
 
-QJsonObject DatabaseManager::makeTransfer(QJsonObject requestJson, const QString &connectionName)
+QJsonObject DatabaseManager::makeTransfer(QJsonObject requestJson)
 {
     QMutexLocker locker(&mutex);
     QSqlDatabase db = QSqlDatabase::database(connectionName);
@@ -535,8 +549,10 @@ QJsonObject DatabaseManager::makeTransfer(QJsonObject requestJson, const QString
     qint64 toAccountNumber = requestJson["toAccountNumber"].toVariant().toLongLong();
     double amount = requestJson["amount"].toDouble();
 
+    locker.unlock();
     // Check if the 'from' account has sufficient balance
-    QJsonObject fromBalanceObj = getAccountBalance(requestJson, connectionName);
+    QJsonObject fromBalanceObj = getAccountBalance(requestJson);
+    locker.relock();
     double fromAccountBalance = fromBalanceObj["balance"].toDouble();
 
     QJsonObject responseJson;
@@ -551,7 +567,9 @@ QJsonObject DatabaseManager::makeTransfer(QJsonObject requestJson, const QString
 
     // Update the 'from' and 'to' account balances
     double newFromBalance = fromAccountBalance - amount;
-    QJsonObject toBalanceObj = getAccountBalance(requestJson, connectionName);
+    locker.unlock();
+    QJsonObject toBalanceObj = getAccountBalance(requestJson);
+    locker.unlock();
     double newToBalance = toBalanceObj["balance"].toDouble() + amount;
 
     QSqlQuery updateBalanceQuery(db);
@@ -618,7 +636,7 @@ QJsonObject DatabaseManager::makeTransfer(QJsonObject requestJson, const QString
     return responseJson;
 }
 
-QJsonObject DatabaseManager::viewTransactionHistory(QJsonObject requestJson, const QString &connectionName)
+QJsonObject DatabaseManager::viewTransactionHistory(QJsonObject requestJson)
 {
     QMutexLocker locker(&mutex);
     QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
@@ -653,7 +671,7 @@ QJsonObject DatabaseManager::viewTransactionHistory(QJsonObject requestJson, con
     return responseJson;
 }
 
-QJsonObject DatabaseManager::updateUserData(QJsonObject requestJson, const QString &connectionName)
+QJsonObject DatabaseManager::updateUserData(QJsonObject requestJson)
 {
     QMutexLocker locker(&mutex);
     QSqlDatabase db = QSqlDatabase::database(connectionName);

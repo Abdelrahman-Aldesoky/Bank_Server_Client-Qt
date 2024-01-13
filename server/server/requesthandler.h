@@ -6,6 +6,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
+#include "databasemanager.h"
 #include "logger.h"
 
 class RequestHandler : public QObject
@@ -14,12 +15,14 @@ class RequestHandler : public QObject
 
 public:
     explicit RequestHandler(const QString &connectionName, QObject *parent = nullptr);
+    ~RequestHandler();
     QByteArray handleRequest(QByteArray requestData);
 
 signals:
     void responseReady(QByteArray responseData);
 
 private:
+    DatabaseManager *databaseManager;
     QString connectionName;
     Logger logger;
 
