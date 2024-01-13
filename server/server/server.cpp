@@ -1,4 +1,3 @@
-// Server.cpp
 #include "Server.h"
 
 Server::Server(QObject *parent)

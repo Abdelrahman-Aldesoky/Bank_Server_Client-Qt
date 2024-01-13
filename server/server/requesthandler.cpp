@@ -1,5 +1,4 @@
 #include "RequestHandler.h"
-#include "DatabaseManager.h"
 
 RequestHandler::RequestHandler(const QString &connectionName, QObject *parent)
     : QObject(parent), connectionName(connectionName), logger("RequestHandler")
