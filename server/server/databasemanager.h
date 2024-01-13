@@ -37,7 +37,7 @@ private:
     QJsonObject getAccountBalance(QJsonObject requestJson);
     QJsonObject createNewAccount(QJsonObject requestJson);
     QJsonObject deleteAccount(QJsonObject requestJson);
-    QJsonObject fetchAllUserData(QJsonObject requestJson);
+    QJsonObject fetchAllUserData(void);
     QJsonObject makeTransaction(QJsonObject requestJson);
     QJsonObject makeTransfer(QJsonObject requestJson);
     QJsonObject viewTransactionHistory(QJsonObject requestJson);

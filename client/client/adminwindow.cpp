@@ -155,8 +155,8 @@ void AdminWindow::handleViewAccountBalanceResponse(const QJsonObject &responseOb
 {
     ui->label_error_viewbalance->clear();
     ui->lbl_viewbalance->setText("Balance: ");
-    double accountBalance = responseObject["accountBalance"].toDouble();
-    bool viewBalanceSuccess = responseObject["viewBalanceSuccess"].toBool();
+    double accountBalance = responseObject["balance"].toDouble();
+    bool viewBalanceSuccess = responseObject["accountFound"].toBool();
 
     if (viewBalanceSuccess)
     {

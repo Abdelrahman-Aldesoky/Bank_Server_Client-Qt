@@ -94,7 +94,7 @@ QJsonObject DatabaseManager::processRequest(QJsonObject requestJson)
         responseJson = deleteAccount(requestJson);
         break;
     case 5:
-        responseJson = fetchAllUserData(requestJson);
+        responseJson = fetchAllUserData();
         break;
     case 6:
         responseJson = makeTransaction(requestJson);
@@ -428,7 +428,7 @@ QJsonObject DatabaseManager::deleteAccount(QJsonObject requestJson)
     return responseJson;
 }
 
-QJsonObject DatabaseManager::fetchAllUserData(QJsonObject requestJson)
+QJsonObject DatabaseManager::fetchAllUserData()
 {
     QMutexLocker locker(&mutex);
     QSqlDatabase db = QSqlDatabase::database(connectionName);
@@ -549,9 +549,13 @@ QJsonObject DatabaseManager::makeTransfer(QJsonObject requestJson)
     qint64 toAccountNumber = requestJson["toAccountNumber"].toVariant().toLongLong();
     double amount = requestJson["amount"].toDouble();
 
+    // Create a new JSON object for the 'from' account balance request
+    QJsonObject fromBalanceRequest;
+    fromBalanceRequest["accountNumber"] = fromAccountNumber;
+
     locker.unlock();
     // Check if the 'from' account has sufficient balance
-    QJsonObject fromBalanceObj = getAccountBalance(requestJson);
+    QJsonObject fromBalanceObj = getAccountBalance(fromBalanceRequest);
     locker.relock();
     double fromAccountBalance = fromBalanceObj["balance"].toDouble();
 
@@ -567,9 +571,14 @@ QJsonObject DatabaseManager::makeTransfer(QJsonObject requestJson)
 
     // Update the 'from' and 'to' account balances
     double newFromBalance = fromAccountBalance - amount;
+
+    // Create a new JSON object for the 'to' account balance request
+    QJsonObject toBalanceRequest;
+    toBalanceRequest["accountNumber"] = toAccountNumber;
+
     locker.unlock();
-    QJsonObject toBalanceObj = getAccountBalance(requestJson);
-    locker.unlock();
+    QJsonObject toBalanceObj = getAccountBalance(toBalanceRequest);
+    locker.relock();
     double newToBalance = toBalanceObj["balance"].toDouble() + amount;
 
     QSqlQuery updateBalanceQuery(db);
@@ -668,6 +677,7 @@ QJsonObject DatabaseManager::viewTransactionHistory(QJsonObject requestJson)
     }
 
     responseJson["transactionHistory"] = transactionHistoryArray;
+    responseJson["viewTransactionHistorySuccess"] = true;
     return responseJson;
 }
 

@@ -87,8 +87,8 @@ void UserWindow::on_pbn_view_balance_clicked()
 void UserWindow::handleViewAccountBalanceResponse(const QJsonObject &responseObject)
 {
     ui->label_view_balance->setText("Balance: ");
-    double accountBalance = responseObject["accountBalance"].toDouble();
-    bool viewBalanceSuccess = responseObject["viewBalanceSuccess"].toBool();
+    double accountBalance = responseObject["balance"].toDouble();
+    bool viewBalanceSuccess = responseObject["accountFound"].toBool();
 
     if (viewBalanceSuccess)
     {
