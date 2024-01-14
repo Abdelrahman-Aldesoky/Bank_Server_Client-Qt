@@ -26,13 +26,22 @@ AdminWindow::~AdminWindow()
 
 void AdminWindow::readyRead()
 {
-    // Read the response from the server
-    QByteArray responseData = socket->readAll();
+    // read data from socket
+    responseData.append(socket->readAll());
+
+    // Check if we have a complete message (newline delimited) only happens when receiving a very large response
+    if (!responseData.endsWith('\n'))
+    {
+        return;  // If not, return and wait for more data
+    }
+
+    // Try to parse the JSON document
+    QJsonDocument jsonResponse = QJsonDocument::fromJson(responseData);
+
+    // if we get here hooray :D its a kinda valid json after a ton of buffering maybe
+    responseData.clear();
 
     //qDebug() << "Raw Response Data:" << responseData;
-
-
-    QJsonDocument jsonResponse = QJsonDocument::fromJson(responseData);
 
     // Check if the response is a valid JSON object
     if (!jsonResponse.isObject())
@@ -40,6 +49,8 @@ void AdminWindow::readyRead()
         qDebug() << "Invalid JSON response from the server.";
         return;
     }
+
+    //qDebug() << "Raw Response Data:" << responseData;
 
     // Handle the response based on the request ID
     QJsonObject responseObject = jsonResponse.object();
@@ -72,7 +83,7 @@ void AdminWindow::readyRead()
         qDebug() << "Unknown responseId ID: " << responseId;
         break;
     }
-    qDebug() << responseData;
+    // qDebug() << responseData;
 }
 
 
@@ -434,10 +445,10 @@ void AdminWindow::handleViewTransactionHistoryResponse(const QJsonObject &respon
             ui->tbl_transaction_history->setItem(row, 3, new QTableWidgetItem(transactionData["Time"].toString()));
 
             // Debugging statements
-            qDebug() << "TransactionID:" << QString::number(transactionData["TransactionID"].toVariant().toLongLong());
-            qDebug() << "Amount:" << QString::number(transactionData["Amount"].toDouble());
-            qDebug() << "Date:" << transactionData["Date"].toString();
-            qDebug() << "Time:" << transactionData["Time"].toString();
+            // qDebug() << "TransactionID:" << QString::number(transactionData["TransactionID"].toVariant().toLongLong());
+            // qDebug() << "Amount:" << QString::number(transactionData["Amount"].toDouble());
+            // qDebug() << "Date:" << transactionData["Date"].toString();
+            // qDebug() << "Time:" << transactionData["Time"].toString();
 
             row++;
         }

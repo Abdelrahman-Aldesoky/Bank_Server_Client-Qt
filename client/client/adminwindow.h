@@ -42,6 +42,8 @@ private:
     Ui::AdminWindow *ui;
     QTcpSocket *socket;
     qint64 accountNumber;
+    QByteArray responseData;
+
     // Regular expressions for username and password validation
     static const QRegularExpression usernameRegex;
     static const QRegularExpression passwordRegex;

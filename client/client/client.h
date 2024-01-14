@@ -8,6 +8,7 @@
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QJsonArray>
+#include <QJsonParseError>
 #include <QDebug>
 
 namespace Ui
@@ -35,6 +36,7 @@ private slots:
 private:
     Ui::client *ui;
     QTcpSocket *socket;
+
     // Regular expressions for username and password validation
     static const QRegularExpression usernameRegex;
     static const QRegularExpression passwordRegex;
