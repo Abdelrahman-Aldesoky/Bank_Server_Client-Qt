@@ -89,6 +89,7 @@ void AdminWindow::readyRead()
 
 void AdminWindow::on_pushButton_get_account_number_clicked()
 {
+    ui->pushButton_get_account_number->setDisabled(true);
     ui->label_error->clear();
     // Request ID for Get Account Number
     quint8 requestId = 1;
@@ -99,6 +100,7 @@ void AdminWindow::on_pushButton_get_account_number_clicked()
     {
         qDebug() << "Warning: Please fill in the username and password.";
         ui->label_error->setText("Can't be empty.");
+        ui->pushButton_get_account_number->setEnabled(true);
         return;
     }
 
@@ -107,6 +109,7 @@ void AdminWindow::on_pushButton_get_account_number_clicked()
     {
         qDebug() << "Warning: Username must only contain alphanumeric characters.";
         ui->label_error->setText("Can't have any special chars only Underscores");
+        ui->pushButton_get_account_number->setEnabled(true);
         return;
     }
 
@@ -140,10 +143,12 @@ void AdminWindow::handleGetAccountNumberResponse(const QJsonObject &responseObje
         ui->label_error->setText("User Not Found!");
         qDebug() << "User not found.";
     }
+    ui->pushButton_get_account_number->setEnabled(true);
 }
 
 void AdminWindow::on_pbn_view_balance_clicked()
 {
+    ui->pbn_view_balance->setDisabled(true);
     ui->label_error_viewbalance->clear();
     // Request ID for View Account Balance
     quint8 requestId = 2;
@@ -180,10 +185,12 @@ void AdminWindow::handleViewAccountBalanceResponse(const QJsonObject &responseOb
         ui->label_error_viewbalance->setText("Failed to view Account Balance!");
         qDebug() << "Failed to view Account Balance.";
     }
+    ui->pbn_view_balance->setEnabled(true);
 }
 
 void AdminWindow::on_pbn_create_new_account_clicked()
 {
+    ui->pbn_create_new_account->setDisabled(true);
     ui->lbl_error_create->clear();
 
     // Request ID for Create Account
@@ -203,6 +210,7 @@ void AdminWindow::on_pbn_create_new_account_clicked()
     {
         qDebug() << "Warning: Please fill in all the required fields.";
         ui->lbl_error_create->setText("All fields are required.");
+        ui->pbn_create_new_account->setEnabled(true);
         return;
     }
 
@@ -211,6 +219,7 @@ void AdminWindow::on_pbn_create_new_account_clicked()
     {
         qDebug() << "Warning: Username must only contain alphanumeric characters.";
         ui->lbl_error_create->setText("Username can only have alphanumeric characters.");
+        ui->pbn_create_new_account->setEnabled(true);
         return;
     }
 
@@ -219,6 +228,7 @@ void AdminWindow::on_pbn_create_new_account_clicked()
     {
         qDebug() << "Warning: Password must not contain whitespace.";
         ui->lbl_error_create->setText("Password must not contain whitespace.");
+        ui->pbn_create_new_account->setEnabled(true);
         return;
     }
 
@@ -227,6 +237,7 @@ void AdminWindow::on_pbn_create_new_account_clicked()
     {
         qDebug() << "Warning: Age must be between 18 and 120.";
         ui->lbl_error_create->setText("Age must be between 18 and 120.");
+        ui->pbn_create_new_account->setEnabled(true);
         return;
     }
 
@@ -257,7 +268,7 @@ void AdminWindow::handleCreateNewAccountResponse(const QJsonObject &responseObje
     if (createAccountSuccess)
     {
         ui->lbl_error_create->setText("Account created. Account Number: "
-                                               + QString::number(accountNumber));
+                                      + QString::number(accountNumber));
         qDebug() << "Create Account successful. Account Number: " << accountNumber;
     }
     else
@@ -266,10 +277,12 @@ void AdminWindow::handleCreateNewAccountResponse(const QJsonObject &responseObje
         ui->lbl_error_create->setText("Failed Error: " + errorMessage);
         qDebug() << "Failed to create account. Error: " << errorMessage;
     }
+    ui->pbn_create_new_account->setEnabled(true);
 }
 
 void AdminWindow::on_pbn_delete_account_clicked()
 {
+    ui->pbn_delete_account->setDisabled(true);
     ui->lbl_error_delete->clear();
 
     if (ui->chkbox_sure->isChecked())
@@ -314,6 +327,26 @@ void AdminWindow::handleDeleteAccountResponse(const QJsonObject &responseObject)
         ui->lbl_error_delete->setText("Failed to delete account.");
         qDebug() << "Failed to delete account.";
     }
+    ui->pbn_delete_account->setEnabled(true);
+}
+
+void AdminWindow::on_pbn_view_database_clicked()
+{
+    ui->pbn_view_database->setDisabled(true);
+    ui->lbl_view_database_error->clear();
+
+    // Request ID for Fetch All User Data
+    quint8 requestId = 5;
+
+    // Construct the request JSON object
+    QJsonObject requestObject;
+    requestObject["requestId"] = static_cast<int>(requestId);
+
+    // Convert the JSON object to a JSON document
+    QJsonDocument jsonRequest(requestObject);
+
+    // Send the request to the server
+    socket->write(jsonRequest.toJson());
 }
 
 void AdminWindow::handleFetchAllUserDataResponse(const QJsonObject &responseObject)
@@ -338,18 +371,23 @@ void AdminWindow::handleFetchAllUserDataResponse(const QJsonObject &responseObje
             QJsonObject userData = userDataValue.toObject();
 
             ui->tbl_view_database->insertRow(row);
-            ui->tbl_view_database->setItem(row, 0, new QTableWidgetItem(QString::number(userData["AccountNumber"].toInt())));
-            ui->tbl_view_database->setItem(row, 1, new QTableWidgetItem(userData["Username"].toString()));
-            ui->tbl_view_database->setItem(row, 2, new QTableWidgetItem(userData["Name"].toString()));
-            ui->tbl_view_database->setItem(row, 3, new QTableWidgetItem(QString::number(userData["Balance"].toDouble())));
-            ui->tbl_view_database->setItem(row, 4, new QTableWidgetItem(QString::number(userData["Age"].toInt())));
+            ui->tbl_view_database->setItem
+                (row, 0, new QTableWidgetItem(QString::number(userData["AccountNumber"].toInt())));
+            ui->tbl_view_database->setItem
+                (row, 1, new QTableWidgetItem(userData["Username"].toString()));
+            ui->tbl_view_database->setItem
+                (row, 2, new QTableWidgetItem(userData["Name"].toString()));
+            ui->tbl_view_database->setItem
+                (row, 3, new QTableWidgetItem(QString::number(userData["Balance"].toDouble())));
+            ui->tbl_view_database->setItem
+                (row, 4, new QTableWidgetItem(QString::number(userData["Age"].toInt())));
 
             // Debugging statements
-            qDebug() << "AccountNumber:" << QString::number(userData["AccountNumber"].toInt());
-            qDebug() << "Username:" << userData["Username"].toString();
-            qDebug() << "Name:" << userData["Name"].toString();
-            qDebug() << "Balance:" << QString::number(userData["Balance"].toDouble());
-            qDebug() << "Age:" << QString::number(userData["Age"].toInt());
+            // qDebug() << "AccountNumber:" << QString::number(userData["AccountNumber"].toInt());
+            // qDebug() << "Username:" << userData["Username"].toString();
+            // qDebug() << "Name:" << userData["Name"].toString();
+            // qDebug() << "Balance:" << QString::number(userData["Balance"].toDouble());
+            // qDebug() << "Age:" << QString::number(userData["Age"].toInt());
 
             row++;
         }
@@ -359,35 +397,21 @@ void AdminWindow::handleFetchAllUserDataResponse(const QJsonObject &responseObje
         ui->label_error->setText("Failed to fetch user data.");
         qDebug() << "Failed to fetch user data.";
     }
-}
-
-void AdminWindow::on_pbn_view_database_clicked()
-{
-    ui->lbl_view_database_error->clear();
-
-    // Request ID for Fetch All User Data
-    quint8 requestId = 5;
-
-    // Construct the request JSON object
-    QJsonObject requestObject;
-    requestObject["requestId"] = static_cast<int>(requestId);
-
-    // Convert the JSON object to a JSON document
-    QJsonDocument jsonRequest(requestObject);
-
-    // Send the request to the server
-    socket->write(jsonRequest.toJson());
+    ui->pbn_view_database->setEnabled(true);
 }
 
 void AdminWindow::on_pbn_view_transaction_history_clicked()
 {
+    ui->pbn_view_transaction_history->setDisabled(true);
     // Get the account number to view transaction history
     qint64 accountNumber=ui->lnedit_act_number_transaction_history->text().toInt();
 
     // Validate the accountNumber
-    if (accountNumber <= 0) {
+    if (accountNumber <= 0)
+    {
         // Display an error message
         ui->lbl_err_transaction_history->setText("Invalid Account Number. Please enter a valid number.");
+        ui->pbn_view_transaction_history->setEnabled(true);
         return;
     }
 
@@ -425,8 +449,8 @@ void AdminWindow::handleViewTransactionHistoryResponse(const QJsonObject &respon
         QJsonArray transactionHistoryArray = responseObject["transactionHistory"].toArray();
 
         qint32 maxRows = ui->lnedit_count->text().isEmpty() ?
-                          transactionHistoryArray.size() :
-                          ui->lnedit_count->text().toInt();
+                             transactionHistoryArray.size() :
+                             ui->lnedit_count->text().toInt();
 
         // Populate tbl_transaction_history with transaction history data
         int row = 0;
@@ -439,10 +463,14 @@ void AdminWindow::handleViewTransactionHistoryResponse(const QJsonObject &respon
             QJsonObject transactionData = transactionDataValue.toObject();
 
             ui->tbl_transaction_history->insertRow(row);
-            ui->tbl_transaction_history->setItem(row, 0, new QTableWidgetItem(QString::number(transactionData["TransactionID"].toVariant().toLongLong())));
-            ui->tbl_transaction_history->setItem(row, 1, new QTableWidgetItem(QString::number(transactionData["Amount"].toDouble())));
-            ui->tbl_transaction_history->setItem(row, 2, new QTableWidgetItem(transactionData["Date"].toString()));
-            ui->tbl_transaction_history->setItem(row, 3, new QTableWidgetItem(transactionData["Time"].toString()));
+            ui->tbl_transaction_history->setItem
+                (row, 0, new QTableWidgetItem(QString::number(transactionData["TransactionID"].toVariant().toLongLong())));
+            ui->tbl_transaction_history->setItem
+                (row, 1, new QTableWidgetItem(QString::number(transactionData["Amount"].toDouble())));
+            ui->tbl_transaction_history->setItem
+                (row, 2, new QTableWidgetItem(transactionData["Date"].toString()));
+            ui->tbl_transaction_history->setItem
+                (row, 3, new QTableWidgetItem(transactionData["Time"].toString()));
 
             // Debugging statements
             // qDebug() << "TransactionID:" << QString::number(transactionData["TransactionID"].toVariant().toLongLong());
@@ -460,9 +488,12 @@ void AdminWindow::handleViewTransactionHistoryResponse(const QJsonObject &respon
         ui->lbl_err_transaction_history->setText("Failed to view transaction history.");
         qDebug() << "Failed to view Transaction History.";
     }
+    ui->pbn_view_transaction_history->setEnabled(true);
 }
+
 void AdminWindow::on_pbn_update_account_clicked()
 {
+    ui->pbn_update_account->setDisabled(true);
     // Request ID for Update Account
     quint8 requestId = 9;
 
@@ -476,6 +507,7 @@ void AdminWindow::on_pbn_update_account_clicked()
     {
         qDebug() << "Warning: Please provide a valid username.";
         ui->lbl_error_create->setText("Please provide a valid username.");
+        ui->pbn_update_account->setEnabled(true);
         return;
     }
 
@@ -484,6 +516,7 @@ void AdminWindow::on_pbn_update_account_clicked()
     {
         qDebug() << "Warning: Password cannot contain whitespace.";
         ui->lbl_error_create->setText("Password cannot contain whitespace.");
+        ui->pbn_update_account->setEnabled(true);
         return;
     }
 
@@ -520,4 +553,5 @@ void AdminWindow::handleUpdateAccountResponse(const QJsonObject &responseObject)
         ui->lbl_error_create->setText(errorMessage);
         qDebug() << "Failed to update account. Error: " << errorMessage;
     }
+    ui->pbn_update_account->setEnabled(true);
 }

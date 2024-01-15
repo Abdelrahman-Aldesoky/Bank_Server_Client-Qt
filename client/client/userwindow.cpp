@@ -9,7 +9,7 @@ UserWindow::UserWindow(QWidget *parent, qint64 accountNumber, QTcpSocket *socket
 
     setAttribute(Qt::WA_DeleteOnClose);
     connect(socket, &QTcpSocket::readyRead, this, &UserWindow::readyRead);
-    qDebug() <<"Constructed User Window.";
+    qDebug() << "Constructed User Window.";
 }
 
 UserWindow::~UserWindow()
@@ -27,7 +27,7 @@ void UserWindow::readyRead()
     // Check if we have a complete message (newline delimited) only happens when receiving a very large response
     if (!responseData.endsWith('\n'))
     {
-        return;  // If not, return and wait for more data
+        return; // If not, return and wait for more data
     }
 
     // Try to parse the JSON document
@@ -36,7 +36,7 @@ void UserWindow::readyRead()
     // if we get here hooray :D its a kinda valid json after a ton of buffering maybe
     responseData.clear();
 
-    //qDebug() << "Raw Response Data:" << responseData;
+    // qDebug() << "Raw Response Data:" << responseData;
 
     // Check if the response is a valid JSON object
     if (!jsonResponse.isObject())
@@ -45,7 +45,7 @@ void UserWindow::readyRead()
         return;
     }
 
-     //qDebug() << "Raw Response Data:" << responseData;
+    // qDebug() << "Raw Response Data:" << responseData;
 
     QJsonObject responseObject = jsonResponse.object();
     int responseId = responseObject["responseId"].toInt();
@@ -70,17 +70,17 @@ void UserWindow::readyRead()
         qDebug() << "Unknown responseId ID: " << responseId;
         break;
     }
-    //qDebug() << responseData;
+    // qDebug() << responseData;
 }
 
 void UserWindow::on_pushButton_get_account_number_clicked()
 {
-    ui->label_account_number->setText("Account Number: "
-                                      + QString::number(accountNumber));
+    ui->label_account_number->setText("Account Number: " + QString::number(accountNumber));
 }
 
 void UserWindow::on_pbn_view_balance_clicked()
 {
+    ui->pbn_view_balance->setDisabled(true);
     // Request ID for View Account Balance
     quint8 requestId = 2;
 
@@ -112,17 +112,22 @@ void UserWindow::handleViewAccountBalanceResponse(const QJsonObject &responseObj
         ui->label_view_balance->setText("Failed to view Account Balance!");
         qDebug() << "Failed to view Account Balance.";
     }
+    ui->pbn_view_balance->setEnabled(true);
 }
 
 void UserWindow::on_pbn_make_trasnaction_clicked()
 {
+    ui->pbn_make_trasnaction->setDisabled(true);
     QString amountString = ui->lnedit_amount->text();
     bool conversionOk;
     double amount = amountString.toDouble(&conversionOk);
 
-    if (!conversionOk || amountString.isEmpty()) {
+    // Validate the amount
+    if (!conversionOk || amountString.isEmpty() || amount == 0)
+    {
         // Display an error message in lbl_transaction_error
         ui->lbl_transaction_error->setText("Invalid amount entered. Please enter a valid number.");
+        ui->pbn_make_trasnaction->setEnabled(true);
         return;
     }
 
@@ -163,16 +168,28 @@ void UserWindow::handleMakeTransactionResponse(const QJsonObject &responseObject
         ui->lbl_transaction_error->setText("Transaction failed: " + errorMessage);
         qDebug() << "Transaction failed: " << errorMessage;
     }
+    ui->pbn_make_trasnaction->setEnabled(true);
 }
 
 void UserWindow::on_pbn_mk_transfer_clicked()
 {
+    ui->pbn_mk_transfer->setDisabled(true);
     // Get the account number to transfer to
     qint64 toAccountNumber = ui->lnedit_to_accountnumber->text().toLongLong();
 
     // Validate the toAccountNumber
-    if (toAccountNumber <= 0) {
+    if (toAccountNumber <= 0)
+    {
         ui->lbl_mk_trnsf_err->setText("Invalid 'To Account Number'. Please enter a valid number.");
+        ui->pbn_mk_transfer->setEnabled(true);
+        return;
+    }
+
+    // Check if the 'from' and 'to' account numbers are the same
+    if (accountNumber == toAccountNumber)
+    {
+        ui->lbl_mk_trnsf_err->setText("You cannot transfer money to yourself!");
+        ui->pbn_mk_transfer->setEnabled(true);
         return;
     }
 
@@ -181,8 +198,11 @@ void UserWindow::on_pbn_mk_transfer_clicked()
     bool conversionOk;
     double amount = amountString.toDouble(&conversionOk);
 
-    if (!conversionOk || amountString.isEmpty() || amount < 0) {
-        ui->lbl_mk_trnsf_err->setText("Invalid transfer amount. Please enter a valid positive number.");
+    // Validate the transfer amount
+    if (!conversionOk || amountString.isEmpty() || amount <= 0)
+    {
+        ui->lbl_mk_trnsf_err->setText("Invalid transfer amount. Please enter a valid positive number greater than zero.");
+        ui->pbn_mk_transfer->setEnabled(true);
         return;
     }
 
@@ -190,7 +210,7 @@ void UserWindow::on_pbn_mk_transfer_clicked()
     ui->lbl_mk_trnsf_err->clear();
 
     // Request ID for Make Transfer
-    quint8 requestId = 7; // You can choose any unused ID
+    quint8 requestId = 7;
 
     // Create a JSON object for the transfer request
     QJsonObject transferRequest;
@@ -226,10 +246,14 @@ void UserWindow::handleMakeTransferResponse(const QJsonObject &responseObject)
         ui->lbl_mk_trnsf_err->setText("Transfer failed: " + errorMessage);
         qDebug() << "Transfer failed: " << errorMessage;
     }
+    ui->pbn_mk_transfer->setEnabled(true);
 }
 
 void UserWindow::on_pbn_view_transaction_histroy_clicked()
 {
+    // Disable the button upon clicking
+    ui->pbn_view_transaction_histroy->setDisabled(true);
+
     // Request ID for View Transaction History
     quint8 requestId = 8;
 
@@ -260,9 +284,7 @@ void UserWindow::handleViewTransactionHistoryResponse(const QJsonObject &respons
         // Get the transaction history array from the response
         QJsonArray transactionHistoryArray = responseObject["transactionHistory"].toArray();
 
-        qint32 maxRows = ui->lnedit_count_user->text().isEmpty() ?
-                             transactionHistoryArray.size() :
-                             ui->lnedit_count_user->text().toInt();
+        qint32 maxRows = ui->lnedit_count_user->text().isEmpty() ? transactionHistoryArray.size() : ui->lnedit_count_user->text().toInt();
 
         // Populate tbl_transactionhistory with transaction history data
         int row = 0;
@@ -280,10 +302,10 @@ void UserWindow::handleViewTransactionHistoryResponse(const QJsonObject &respons
             ui->tbl_view_histroy_transaction->setItem(row, 3, new QTableWidgetItem(transactionData["Time"].toString()));
 
             // Debugging statements
-            //qDebug() << "TransactionID:" << QString::number(transactionData["TransactionID"].toVariant().toLongLong());
-            //qDebug() << "Amount:" << QString::number(transactionData["Amount"].toDouble());
-            //qDebug() << "Date:" << transactionData["Date"].toString();
-            //qDebug() << "Time:" << transactionData["Time"].toString();
+            // qDebug() << "TransactionID:" << QString::number(transactionData["TransactionID"].toVariant().toLongLong());
+            // qDebug() << "Amount:" << QString::number(transactionData["Amount"].toDouble());
+            // qDebug() << "Date:" << transactionData["Date"].toString();
+            // qDebug() << "Time:" << transactionData["Time"].toString();
 
             row++;
         }
@@ -295,4 +317,6 @@ void UserWindow::handleViewTransactionHistoryResponse(const QJsonObject &respons
         ui->lbl_err_transaction_history->setText("Failed to view transaction history.");
         qDebug() << "Failed to view Transaction History.";
     }
+    // enable the button
+    ui->pbn_view_transaction_histroy->setEnabled(true);
 }

@@ -42,6 +42,10 @@ private:
     QJsonObject makeTransfer(QJsonObject requestJson);
     QJsonObject viewTransactionHistory(QJsonObject requestJson);
     QJsonObject updateUserData(QJsonObject requestJson);
+
+    // Helper Functions
+    bool updateAccountBalance(qint64 accountNumber, double amount);
+    bool logTransaction(qint64 accountNumber, double amount);
 };
 
 #endif // DATABASEMANAGER_H
