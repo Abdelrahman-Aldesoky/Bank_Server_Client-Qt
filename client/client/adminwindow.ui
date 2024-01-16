@@ -132,7 +132,7 @@
      </item>
     </layout>
    </widget>
-   <widget class="QWidget" name="">
+   <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
       <x>10</x>
@@ -250,7 +250,11 @@
         </widget>
        </item>
        <item>
-        <widget class="QLineEdit" name="lnedit_password_input"/>
+        <widget class="QLineEdit" name="lnedit_password_input">
+         <property name="echoMode">
+          <enum>QLineEdit::PasswordEchoOnEdit</enum>
+         </property>
+        </widget>
        </item>
       </layout>
      </item>
