@@ -26,9 +26,6 @@ RequestHandler::~RequestHandler()
 
 QByteArray RequestHandler::handleRequest(QByteArray requestData)
 {
-    //"not needed anymore they were just for debugging" faster performance
-    //logger.log("Processing Request: " + QString(requestData));
-
     // Convert the received data to a JSON document
     QJsonDocument jsonDoc = QJsonDocument::fromJson(requestData);
 
@@ -41,12 +38,12 @@ QByteArray RequestHandler::handleRequest(QByteArray requestData)
     // Convert the response object to a JSON document
     QJsonDocument jsonResponse(responseObj);
 
-    // Convert the JSON document to a byte array
-    QByteArray responseData = jsonResponse.toJson();
+    // Convert the JSON document to a byte array using compact removing white spaces
+    QByteArray responseData = jsonResponse.toJson(QJsonDocument::Compact);
 
-    // Log the response data "not needed anymore they were just for debugging" faster performance
-    //logger.log("Returning Response: " + QString(responseData));
+    // Compress the response data
+    responseData = qCompress(responseData);
 
-    // Return the response data
+    // Return the compressed data
     return responseData;
 }

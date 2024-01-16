@@ -38,7 +38,8 @@ void ClientRunnable::readyRead()
 
 void ClientRunnable::sendResponseToClient(QByteArray responseData)
 {
-    if (clientSocket->write(responseData) == -1) {
+    if (clientSocket->write(responseData) == -1)
+    {
         logger.log("Failed to write data to client: " + clientSocket->errorString());
     }
 }

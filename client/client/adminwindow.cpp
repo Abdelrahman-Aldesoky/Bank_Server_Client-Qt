@@ -9,7 +9,8 @@ AdminWindow::AdminWindow(QWidget *parent, qint64 accountNumber, QTcpSocket *sock
 {
     ui->setupUi(this);
     setWindowTitle("Admin Window - Account Number: " + QString::number(accountNumber));
-
+    this->setWindowIcon(QIcon("bank.jpg"));
+    this->setWindowIconText("Admin");
     // Set the Qt::WA_DeleteOnClose attribute to ensure the destructor is called on close
     setAttribute(Qt::WA_DeleteOnClose);
     connect(socket, &QTcpSocket::readyRead, this, &AdminWindow::readyRead);
@@ -26,22 +27,14 @@ AdminWindow::~AdminWindow()
 
 void AdminWindow::readyRead()
 {
-    // read data from socket
-    responseData.append(socket->readAll());
+    // Read data from socket
+    QByteArray responseData = socket->readAll();
 
-    // Check if we have a complete message (newline delimited) only happens when receiving a very large response
-    if (!responseData.endsWith('\n'))
-    {
-        return;  // If not, return and wait for more data
-    }
+    // Uncompress the response data
+    responseData = qUncompress(responseData);
 
     // Try to parse the JSON document
     QJsonDocument jsonResponse = QJsonDocument::fromJson(responseData);
-
-    // if we get here hooray :D its a kinda valid json after a ton of buffering maybe
-    responseData.clear();
-
-    //qDebug() << "Raw Response Data:" << responseData;
 
     // Check if the response is a valid JSON object
     if (!jsonResponse.isObject())
@@ -49,8 +42,6 @@ void AdminWindow::readyRead()
         qDebug() << "Invalid JSON response from the server.";
         return;
     }
-
-    //qDebug() << "Raw Response Data:" << responseData;
 
     // Handle the response based on the request ID
     QJsonObject responseObject = jsonResponse.object();
@@ -382,13 +373,6 @@ void AdminWindow::handleFetchAllUserDataResponse(const QJsonObject &responseObje
             ui->tbl_view_database->setItem
                 (row, 4, new QTableWidgetItem(QString::number(userData["Age"].toInt())));
 
-            // Debugging statements
-            // qDebug() << "AccountNumber:" << QString::number(userData["AccountNumber"].toInt());
-            // qDebug() << "Username:" << userData["Username"].toString();
-            // qDebug() << "Name:" << userData["Name"].toString();
-            // qDebug() << "Balance:" << QString::number(userData["Balance"].toDouble());
-            // qDebug() << "Age:" << QString::number(userData["Age"].toInt());
-
             row++;
         }
     }
@@ -471,12 +455,6 @@ void AdminWindow::handleViewTransactionHistoryResponse(const QJsonObject &respon
                 (row, 2, new QTableWidgetItem(transactionData["Date"].toString()));
             ui->tbl_transaction_history->setItem
                 (row, 3, new QTableWidgetItem(transactionData["Time"].toString()));
-
-            // Debugging statements
-            // qDebug() << "TransactionID:" << QString::number(transactionData["TransactionID"].toVariant().toLongLong());
-            // qDebug() << "Amount:" << QString::number(transactionData["Amount"].toDouble());
-            // qDebug() << "Date:" << transactionData["Date"].toString();
-            // qDebug() << "Time:" << transactionData["Time"].toString();
 
             row++;
         }

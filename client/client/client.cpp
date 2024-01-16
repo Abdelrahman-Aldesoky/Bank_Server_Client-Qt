@@ -17,6 +17,7 @@ client::client(QWidget *parent)
     ui->setupUi(this);
     // Set the window elements
     setWindowTitle("Login Window");
+    this->setWindowIcon(QIcon("bank.jpg"));
 
     //handle state changed for connection
     connect(socket, &QTcpSocket::stateChanged, this, &client::handleStateChanged);
@@ -72,8 +73,13 @@ void client::on_pbn_connect_clicked()
 // Slot for handling incoming data from the server
 void client::readyRead()
 {
-    // Read the response from the server
+    // Read data from socket
     QByteArray responseData = socket->readAll();
+
+    // Uncompress the response data
+    responseData = qUncompress(responseData);
+
+    // Try to parse the JSON document
     QJsonDocument jsonResponse = QJsonDocument::fromJson(responseData);
 
     // Check if the response is a valid JSON object
@@ -161,7 +167,7 @@ void client::handleLoginResponse(const QJsonObject &responseObject)
         {
             // Disconnect the readyRead signal from the client slot
             disconnect(socket, &QTcpSocket::readyRead, this, &client::readyRead);
-            AdminWindow *adminWindow = new AdminWindow(this, accountNumber, socket);
+            AdminWindow *adminWindow = new AdminWindow(nullptr, accountNumber, socket);
             // Connect the finished signal in the AdminWindow object to showOldWindow in the client object
             connect(adminWindow, &AdminWindow::finished, this, &client::showOldWindow);
             qDebug() << adminWindow;
@@ -171,7 +177,7 @@ void client::handleLoginResponse(const QJsonObject &responseObject)
         {
             // Disconnect the readyRead signal from the client slot
             disconnect(socket, &QTcpSocket::readyRead, this, &client::readyRead);
-            UserWindow *userWindow = new UserWindow(this, accountNumber, socket);
+            UserWindow *userWindow = new UserWindow(nullptr, accountNumber, socket);
             // Connect the finished signal in the UserWindow object to showOldWindow in the client object
             connect(userWindow, &UserWindow::finished, this, &client::showOldWindow);
             qDebug() << userWindow;

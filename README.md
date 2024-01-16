@@ -19,7 +19,7 @@ This application is a banking system implemented as a client-server model using 
 To use this application, start the server application first. Then, start the client application and connect to the server on localhost. There is a default account with username `admin` and password `admin`.
 
 ## Installation
-Extract the files on a Windows machine and run the .exe file. The application has been deployed using winqtdeploy, so it should run without needing any additional dependencies.
+Extract the files located in the "Executables" folder on a Windows machine and run the .exe file. The application has been deployed using winqtdeploy, so it should run without needing any additional dependencies.
 
 ## Future Improvements
 - **Secure Connection**: Implement encryption for the connection between the client and server to enhance security.

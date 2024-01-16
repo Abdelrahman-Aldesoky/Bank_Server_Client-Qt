@@ -38,7 +38,6 @@ private:
     Ui::UserWindow *ui;
     QTcpSocket *socket;
     qint64 accountNumber;
-    QByteArray responseData;
 
     void handleViewAccountBalanceResponse(const QJsonObject &responseObject);
     void handleMakeTransactionResponse(const QJsonObject &responseObject);
