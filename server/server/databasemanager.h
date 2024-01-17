@@ -11,6 +11,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QDateTime>
+#include <QRegularExpression>
 
 #include "Logger.h"
 
@@ -21,10 +22,26 @@ class DatabaseManager : public QObject
 public:
     explicit DatabaseManager(const QString &connectionName, QObject *parent = nullptr);
     ~DatabaseManager();
-    void initializeDatabase();
+
+    // Functions to manage the database
     bool openConnection();
     void closeConnection();
+    void initializeDatabase();
     bool createTables();
+
+    // Specific functions for the banking application. These functions utilize the common database operations.
+    QJsonObject login(QJsonObject requestJson);
+    QJsonObject getAccountNumber(QJsonObject requestJson);
+    QJsonObject getAccountBalance(QJsonObject requestJson);
+    QJsonObject createNewAccount(QJsonObject requestJson);
+    QJsonObject deleteAccount(QJsonObject requestJson);
+    QJsonObject viewDatabase();
+    QJsonObject makeTransaction(QJsonObject requestJson);
+    QJsonObject makeTransfer(QJsonObject requestJson);
+    QJsonObject viewTransactionHistory(QJsonObject requestJson);
+    QJsonObject updateUserData(QJsonObject requestJson);
+
+    // Process incoming request and send response back
     QJsonObject processRequest(QJsonObject requestJson);
 
 private:
@@ -32,19 +49,24 @@ private:
     QString connectionName;
     Logger logger;
 
-    QJsonObject login(QJsonObject requestJson);
-    QJsonObject getAccountNumber(QJsonObject requestJson);
-    QJsonObject getAccountBalance(QJsonObject requestJson);
-    QJsonObject createNewAccount(QJsonObject requestJson);
-    QJsonObject deleteAccount(QJsonObject requestJson);
-    QJsonObject fetchAllUserData(void);
-    QJsonObject makeTransaction(QJsonObject requestJson);
-    QJsonObject makeTransfer(QJsonObject requestJson);
-    QJsonObject viewTransactionHistory(QJsonObject requestJson);
-    QJsonObject updateUserData(QJsonObject requestJson);
+    // Common database operations used in the industry
+    bool startDatabaseTransaction();
+    bool commitDatabaseTransaction();
+    bool rollbackDatabaseTransaction();
 
-    // Helper Functions
-    bool updateAccountBalance(qint64 accountNumber, double amount);
+    //The Four Pillars of modularity
+    QVariant fetchData(const QString &tableName,
+                       const QString &fieldName,
+                       const QJsonObject &searchCriteria);
+    qint64 insertData(const QString &tableName,
+                      const QJsonObject &data);
+    bool updateData(const QString &tableName,
+                    const QJsonObject &data,
+                    const QJsonObject &searchCriteria);
+    bool removeData(const QString &tableName,
+                    const QJsonObject &searchCriteria);
+
+    // Helper Function for logging transaction
     bool logTransaction(qint64 accountNumber, double amount);
 };
 

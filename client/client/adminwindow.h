@@ -23,19 +23,12 @@ signals:
 
 private slots:
     void readyRead();
-
     void on_pushButton_get_account_number_clicked();
-
     void on_pbn_view_balance_clicked();
-
     void on_pbn_create_new_account_clicked();
-
     void on_pbn_delete_account_clicked();
-
     void on_pbn_view_database_clicked();
-
     void on_pbn_view_transaction_history_clicked();
-
     void on_pbn_update_account_clicked();
 
 private:
@@ -51,7 +44,7 @@ private:
     void handleGetAccountNumberResponse(const QJsonObject &responseObject);
     void handleViewAccountBalanceResponse(const QJsonObject &responseObject);
     void handleDeleteAccountResponse(const QJsonObject &responseObject);
-    void handleFetchAllUserDataResponse(const QJsonObject &responseObject);
+    void handleViewDatabaseResponse(const QJsonObject &responseObject);
     void handleViewTransactionHistoryResponse(const QJsonObject &responseObject);
     void handleUpdateAccountResponse(const QJsonObject &responseObject);
 };

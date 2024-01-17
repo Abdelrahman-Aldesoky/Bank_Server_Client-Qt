@@ -62,7 +62,7 @@ void AdminWindow::readyRead()
         handleDeleteAccountResponse(responseObject);
         break;
     case 5:
-        handleFetchAllUserDataResponse(responseObject);
+        handleViewDatabaseResponse(responseObject);
         break;
     case 8:
         handleViewTransactionHistoryResponse(responseObject);
@@ -173,8 +173,8 @@ void AdminWindow::handleViewAccountBalanceResponse(const QJsonObject &responseOb
     }
     else
     {
-        ui->label_error_viewbalance->setText("Failed to view Account Balance!");
-        qDebug() << "Failed to view Account Balance.";
+        ui->label_error_viewbalance->setText("User not found.");
+        qDebug() << "User not found.";
     }
     ui->pbn_view_balance->setEnabled(true);
 }
@@ -281,8 +281,16 @@ void AdminWindow::on_pbn_delete_account_clicked()
         // Request ID for Delete Account
         quint8 requestId = 4;
 
-        // Get the account number from the UI
-        qint64 accountNumber = ui->lnedit_delete_account_number->text().toLongLong();
+        bool ok;
+        qint64 accountNumber = ui->lnedit_delete_account_number->text().toLongLong(&ok);
+
+        if (!ok)
+        {
+            ui->lbl_error_delete->setText("Please enter a valid account number.");
+            qDebug() << "Invalid account number entered.";
+            ui->pbn_delete_account->setEnabled(true);
+            return;
+        }
 
         // Construct the request JSON object
         QJsonObject requestObject;
@@ -299,6 +307,7 @@ void AdminWindow::on_pbn_delete_account_clicked()
     {
         ui->lbl_error_delete->setText("Please check the confirmation box to delete the account.");
         qDebug() << "Deletion canceled. To delete the account, please check the confirmation box.";
+        ui->pbn_delete_account->setEnabled(true);
     }
 }
 
@@ -340,7 +349,7 @@ void AdminWindow::on_pbn_view_database_clicked()
     socket->write(jsonRequest.toJson());
 }
 
-void AdminWindow::handleFetchAllUserDataResponse(const QJsonObject &responseObject)
+void AdminWindow::handleViewDatabaseResponse(const QJsonObject &responseObject)
 {
     ui->label_error->clear();
 
@@ -372,13 +381,15 @@ void AdminWindow::handleFetchAllUserDataResponse(const QJsonObject &responseObje
                 (row, 3, new QTableWidgetItem(QString::number(userData["Balance"].toDouble())));
             ui->tbl_view_database->setItem
                 (row, 4, new QTableWidgetItem(QString::number(userData["Age"].toInt())));
+            ui->tbl_view_database->setItem
+                (row, 5, new QTableWidgetItem(userData["isAdmin"].toBool() ? "Admin" : "User"));
 
             row++;
         }
     }
     else
     {
-        ui->label_error->setText("Failed to fetch user data.");
+        ui->lbl_view_database_error->setText("Failed to fetch user data.");
         qDebug() << "Failed to fetch user data.";
     }
     ui->pbn_view_database->setEnabled(true);
@@ -416,7 +427,6 @@ void AdminWindow::on_pbn_view_transaction_history_clicked()
     // Send the request to the server
     socket->write(jsonRequest.toJson());
 }
-
 void AdminWindow::handleViewTransactionHistoryResponse(const QJsonObject &responseObject)
 {
     ui->lbl_err_transaction_history->clear();
@@ -463,8 +473,9 @@ void AdminWindow::handleViewTransactionHistoryResponse(const QJsonObject &respon
     }
     else
     {
-        ui->lbl_err_transaction_history->setText("Failed to view transaction history.");
-        qDebug() << "Failed to view Transaction History.";
+        QString errorMessage = responseObject["errorMessage"].toString();
+        ui->lbl_err_transaction_history->setText(errorMessage);
+        qDebug() << "Failed to view Transaction History. Error: " << errorMessage;
     }
     ui->pbn_view_transaction_history->setEnabled(true);
 }

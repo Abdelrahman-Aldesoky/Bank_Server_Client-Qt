@@ -10,8 +10,8 @@ const QRegularExpression client::passwordRegex("\\s");
 // Constructor
 client::client(QWidget *parent)
     : QMainWindow(parent),
-    ui(new Ui::client),
-    socket(new QSslSocket(this))
+      ui(new Ui::client),
+      socket(new QSslSocket(this))
 {
     // Setup the UI
     ui->setupUi(this);
@@ -19,10 +19,10 @@ client::client(QWidget *parent)
     setWindowTitle("Login Window");
     this->setWindowIcon(QIcon("bank.jpg"));
 
-    //handle state changed for connection
+    // handle state changed for connection
     connect(socket, &QSslSocket::stateChanged, this, &client::handleStateChanged);
 
-    //attempt connecting to the server
+    // attempt connecting to the server
     connectToServer();
 
     // Connect the readyRead signal to the readyRead slot
@@ -34,6 +34,9 @@ client::~client()
 {
     // Flush the socket
     socket->flush();
+    socket->disconnect();
+    // Delete socket
+    delete socket;
     // Delete the UI
     delete ui;
 }
@@ -69,7 +72,6 @@ void client::on_pbn_connect_clicked()
     connectToServer();
 }
 
-
 // Slot for handling incoming data from the server
 void client::readyRead()
 {
@@ -102,7 +104,6 @@ void client::readyRead()
         qDebug() << "Unknown responseId ID: " << responseId;
         break;
     }
-   // qDebug() << responseData;
 }
 
 // Slot for handling login button click

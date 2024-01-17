@@ -14,6 +14,60 @@ DatabaseManager::~DatabaseManager()
     logger.log("DatabaseManager Object Destroyed.");
 }
 
+QJsonObject DatabaseManager::processRequest(QJsonObject requestJson)
+{
+    QMutexLocker locker(&mutex);
+
+    // Extract the request ID from the request JSON
+    int requestId = requestJson["requestId"].toInt();
+
+    QJsonObject responseJson;
+
+    // Process the request based on the request ID
+    switch (requestId)
+    {
+    case 0:
+        responseJson = login(requestJson);
+        break;
+    case 1:
+        responseJson = getAccountNumber(requestJson);
+        break;
+    case 2:
+        responseJson = getAccountBalance(requestJson);
+        break;
+    case 3:
+        responseJson = createNewAccount(requestJson);
+        break;
+    case 4:
+        responseJson = deleteAccount(requestJson);
+        break;
+    case 5:
+        responseJson = viewDatabase();
+        break;
+    case 6:
+        responseJson = makeTransaction(requestJson);
+        break;
+    case 7:
+        responseJson = makeTransfer(requestJson);
+        break;
+    case 8:
+        responseJson = viewTransactionHistory(requestJson);
+        break;
+    case 9:
+        responseJson = updateUserData(requestJson);
+        break;
+    default:
+        // Handle unknown request
+        logger.log("Unknown request");
+        break;
+    }
+
+    // Add the response ID to the response JSON
+    responseJson["responseId"] = requestId;
+
+    return responseJson;
+}
+
 bool DatabaseManager::openConnection()
 {
     QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
@@ -66,60 +120,6 @@ void DatabaseManager::initializeDatabase()
     }
 }
 
-QJsonObject DatabaseManager::processRequest(QJsonObject requestJson)
-{
-    QMutexLocker locker(&mutex);
-
-    // Extract the request ID from the request JSON
-    int requestId = requestJson["requestId"].toInt();
-
-    QJsonObject responseJson;
-
-    // Process the request based on the request ID
-    switch (requestId)
-    {
-    case 0:
-        responseJson = login(requestJson);
-        break;
-    case 1:
-        responseJson = getAccountNumber(requestJson);
-        break;
-    case 2:
-        responseJson = getAccountBalance(requestJson);
-        break;
-    case 3:
-        responseJson = createNewAccount(requestJson);
-        break;
-    case 4:
-        responseJson = deleteAccount(requestJson);
-        break;
-    case 5:
-        responseJson = fetchAllUserData();
-        break;
-    case 6:
-        responseJson = makeTransaction(requestJson);
-        break;
-    case 7:
-        responseJson = makeTransfer(requestJson);
-        break;
-    case 8:
-        responseJson = viewTransactionHistory(requestJson);
-        break;
-    case 9:
-        responseJson = updateUserData(requestJson);
-        break;
-    default:
-        // Handle unknown request
-        logger.log("Unknown request");
-        break;
-    }
-
-    // Add the response ID to the response JSON
-    responseJson["responseId"] = requestId;
-
-    return responseJson;
-}
-
 bool DatabaseManager::createTables()
 {
     QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
@@ -146,13 +146,12 @@ bool DatabaseManager::createTables()
     }
 
     // Insert default admin account
-    const QString insert_default_admin =
-        "INSERT INTO Accounts (Username, Password, Admin) "
-        "VALUES ('admin', 'admin', 1);";
-    if (!createTablesQuery.exec(insert_default_admin))
+    QJsonObject defaultAdminData;
+    defaultAdminData["Username"] = "admin";
+    defaultAdminData["Password"] = "admin";
+    defaultAdminData["Admin"] = true;
+    if (!insertData("Accounts", defaultAdminData))
     {
-        logger.log("Failed to insert default admin account.");
-        logger.log("Error: " + createTablesQuery.lastError().text());
         dbConnection.rollback();
         return false;
     }
@@ -196,44 +195,204 @@ bool DatabaseManager::createTables()
     return true;
 }
 
-QJsonObject DatabaseManager::login(QJsonObject requestJson)
+bool DatabaseManager::startDatabaseTransaction()
 {
     QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
-    QSqlQuery loginQuery(dbConnection);
-
-    QJsonObject responseJson;
-    responseJson["loginSuccess"] = false;
-
-    // Begin transaction
     if (!dbConnection.transaction())
     {
-        logger.log("Failed to start a transaction for login.");
-        return responseJson;
+        logger.log("Failed to start a database transaction.");
+        return false;
     }
+    return true;
+}
+
+bool DatabaseManager::commitDatabaseTransaction()
+{
+    QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
+    if (!dbConnection.commit())
+    {
+        logger.log("Failed to commit database transaction.");
+        return false;
+    }
+    return true;
+}
+
+bool DatabaseManager::rollbackDatabaseTransaction()
+{
+    QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
+    if (!dbConnection.rollback())
+    {
+        logger.log("Failed to rollback database transaction.");
+        return false;
+    }
+    return true;
+}
+
+QVariant DatabaseManager::fetchData(const QString &tableName,
+                                    const QString &fieldName,
+                                    const QJsonObject &searchCriteria)
+{
+    QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
+    QSqlQuery fetchQuery(dbConnection);
+
+    QStringList criteriaList;
+    for (auto it = searchCriteria.begin(); it != searchCriteria.end(); ++it)
+    {
+        criteriaList.append(QString("%1 = ?").arg(it.key()));
+    }
+    QString criteriaString = criteriaList.join(" AND ");
+
+    fetchQuery.prepare(QString("SELECT %1 FROM %2 WHERE %3").
+                       arg(fieldName, tableName, criteriaString));
+
+    for (auto it = searchCriteria.begin(); it != searchCriteria.end(); ++it)
+    {
+        fetchQuery.addBindValue(it.value().toVariant());
+    }
+
+    if (!fetchQuery.exec())
+    {
+        logger.log("Failed to fetch data from the database.");
+        logger.log("Error: " + fetchQuery.lastError().text());
+        return QVariant();
+    }
+
+    if (fetchQuery.next())
+    {
+        return fetchQuery.value(0);
+    }
+
+    return QVariant();
+}
+
+qint64 DatabaseManager::insertData(const QString &tableName,
+                                   const QJsonObject &data)
+{
+    QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
+    QSqlQuery insertQuery(dbConnection);
+
+    QStringList keys = data.keys();
+    QString fields = keys.join(",");
+
+    // Use a static QRegularExpression object to not load it every single call
+    static const QRegularExpression re("[^,]+");
+    QString placeholders = keys.join(",").replace(re, "?");
+
+    insertQuery.prepare(QString("INSERT INTO %1 (%2) VALUES (%3)").
+                        arg(tableName, fields, placeholders));
+
+    foreach (const QString &key, keys)
+    {
+        insertQuery.addBindValue(data[key].toVariant());
+    }
+
+    if (!insertQuery.exec())
+    {
+        logger.log("Failed to insert data into the database.");
+        logger.log("Error: " + insertQuery.lastError().text());
+        return 0;
+    }
+
+    return insertQuery.lastInsertId().toLongLong();
+}
+
+bool DatabaseManager::updateData(const QString &tableName,
+                                 const QJsonObject &data,
+                                 const QJsonObject &searchCriteria)
+{
+    QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
+    QSqlQuery updateQuery(dbConnection);
+
+    QStringList keys = data.keys();
+    QString setStatement = keys.join("=?,") + "=?";
+
+    QStringList criteriaKeys = searchCriteria.keys();
+    QStringList criteriaList;
+    for (const QString &key : criteriaKeys)
+    {
+        criteriaList.append(QString("%1 = ?").arg(key));
+    }
+    QString criteriaString = criteriaList.join(" AND ");
+
+    updateQuery.prepare(QString("UPDATE %1 SET %2 WHERE %3").
+                        arg(tableName, setStatement, criteriaString));
+
+    foreach (const QString &key, keys)
+    {
+        updateQuery.addBindValue(data[key].toVariant());
+    }
+    foreach (const QString &key, criteriaKeys)
+    {
+        updateQuery.addBindValue(searchCriteria[key].toVariant());
+    }
+
+    if (!updateQuery.exec())
+    {
+        logger.log("Failed to update data in the database.");
+        logger.log("Error: " + updateQuery.lastError().text());
+        return false;
+    }
+
+    return true;
+}
+
+bool DatabaseManager::removeData(const QString &tableName,
+                                 const QJsonObject &searchCriteria)
+{
+    QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
+    QSqlQuery removeQuery(dbConnection);
+
+    QStringList criteriaKeys = searchCriteria.keys();
+    QStringList criteriaList;
+    for (const QString &key : criteriaKeys)
+    {
+        criteriaList.append(QString("%1 = ?").arg(key));
+    }
+    QString criteriaString = criteriaList.join(" AND ");
+
+    removeQuery.prepare(QString("DELETE FROM %1 WHERE %2").
+                        arg(tableName, criteriaString));
+
+    foreach (const QString &key, criteriaKeys)
+    {
+        removeQuery.addBindValue(searchCriteria[key].toVariant());
+    }
+
+    if (!removeQuery.exec())
+    {
+        logger.log("Failed to remove data from the database.");
+        logger.log("Error: " + removeQuery.lastError().text());
+        return false;
+    }
+
+    return true;
+}
+
+QJsonObject DatabaseManager::login(QJsonObject requestJson)
+{
+    QJsonObject responseJson;
+    responseJson["loginSuccess"] = false;
 
     // Extract the username and password from the request JSON
     QString username = requestJson["username"].toString();
     QString password = requestJson["password"].toString();
 
-    loginQuery.prepare("SELECT AccountNumber, Admin FROM Accounts "
-                       "WHERE Username = :username AND Password = :password");
-    loginQuery.bindValue(":username", username);
-    loginQuery.bindValue(":password", password);
+    // Prepare the search criteria
+    QJsonObject searchCriteria;
+    searchCriteria["Username"] = username;
+    searchCriteria["Password"] = password;
 
-    if (!loginQuery.exec())
-    {
-        logger.log("Failed execution for login query.");
-        logger.log("Error: " + loginQuery.lastError().text());
-        dbConnection.rollback();
-        return responseJson;
-    }
+    // Fetch the account number and admin status
+    QVariant accountNumberData = fetchData("Accounts", "AccountNumber",
+                                           searchCriteria);
+    QVariant adminData = fetchData("Accounts", "Admin", searchCriteria);
 
-    if (loginQuery.next())
+    if (!accountNumberData.isNull() && !adminData.isNull())
     {
         // Login successful
         responseJson["loginSuccess"] = true;
-        responseJson["accountNumber"] = loginQuery.value("AccountNumber").toLongLong();
-        responseJson["isAdmin"] = loginQuery.value("Admin").toBool();
+        responseJson["accountNumber"] = accountNumberData.toLongLong();
+        responseJson["isAdmin"] = adminData.toBool();
     }
     else
     {
@@ -241,43 +400,35 @@ QJsonObject DatabaseManager::login(QJsonObject requestJson)
         logger.log("Login failed.");
     }
 
-    // Commit transaction
-    if (!dbConnection.commit())
-    {
-        logger.log("Failed to commit transaction for login.");
-        dbConnection.rollback();
-        return responseJson;
-    }
-
     return responseJson;
 }
 
 QJsonObject DatabaseManager::getAccountNumber(QJsonObject requestJson)
 {
-    QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
-    QSqlQuery accountNumberQuery(dbConnection);
-
     QJsonObject responseJson;
     responseJson["userFound"] = false;
 
     // Extract the username from the request JSON
     QString username = requestJson["username"].toString();
 
-    accountNumberQuery.prepare("SELECT AccountNumber FROM Accounts WHERE Username = :username");
-    accountNumberQuery.bindValue(":username", username);
+    // Prepare the search criteria
+    QJsonObject searchCriteria;
+    searchCriteria["Username"] = username;
 
-    if (!accountNumberQuery.exec())
-    {
-        logger.log("Failed execution for getAccountNumber query.");
-        logger.log("Error: " + accountNumberQuery.lastError().text());
-        return responseJson;
-    }
+    // Fetch the account number
+    QVariant accountNumber = fetchData("Accounts", "AccountNumber",
+                                       searchCriteria);
 
-    if (accountNumberQuery.next())
+    if (!accountNumber.isNull())
     {
         // User found
-        responseJson["accountNumber"] = accountNumberQuery.value("AccountNumber").toLongLong();
+        responseJson["accountNumber"] = accountNumber.toLongLong();
         responseJson["userFound"] = true;
+    }
+    else
+    {
+        // User not found
+        logger.log("User not found.");
     }
 
     return responseJson;
@@ -285,30 +436,30 @@ QJsonObject DatabaseManager::getAccountNumber(QJsonObject requestJson)
 
 QJsonObject DatabaseManager::getAccountBalance(QJsonObject requestJson)
 {
-    QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
-    QSqlQuery balanceQuery(dbConnection);
-
     QJsonObject responseJson;
     responseJson["accountFound"] = false;
 
     // Extract the account number from the request JSON
     qint64 accountNumber = requestJson["accountNumber"].toVariant().toLongLong();
 
-    balanceQuery.prepare("SELECT Balance FROM Users_Personal_Data WHERE AccountNumber = :accountNumber");
-    balanceQuery.bindValue(":accountNumber", accountNumber);
+    // Prepare the search criteria
+    QJsonObject searchCriteria;
+    searchCriteria["AccountNumber"] = accountNumber;
 
-    if (!balanceQuery.exec())
-    {
-        logger.log("Failed execution for getAccountBalance query.");
-        logger.log("Error: " + balanceQuery.lastError().text());
-        return responseJson;
-    }
+    // Fetch the account balance
+    QVariant balance = fetchData("Users_Personal_Data", "Balance", searchCriteria);
 
-    if (balanceQuery.next())
+    if (!balance.isNull())
     {
         // Account found
-        responseJson["balance"] = balanceQuery.value("Balance").toDouble();
+        responseJson["balance"] = balance.toDouble();
         responseJson["accountFound"] = true;
+    }
+    else
+    {
+        // Account not found
+
+        logger.log("Account not found.");
     }
 
     return responseJson;
@@ -316,18 +467,8 @@ QJsonObject DatabaseManager::getAccountBalance(QJsonObject requestJson)
 
 QJsonObject DatabaseManager::createNewAccount(QJsonObject requestJson)
 {
-    QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
-    QSqlQuery checkQuery(dbConnection), insertAccountsQuery(dbConnection), insertPersonalDataQuery(dbConnection);
-
     QJsonObject responseJson;
     responseJson["createAccountSuccess"] = false;
-
-    // Begin transaction
-    if (!dbConnection.transaction())
-    {
-        logger.log("Failed to start a transaction for createNewAccount.");
-        return responseJson;
-    }
 
     // Extract the necessary data from the request JSON
     bool isAdmin = requestJson["isAdmin"].toBool();
@@ -337,121 +478,129 @@ QJsonObject DatabaseManager::createNewAccount(QJsonObject requestJson)
     int age = requestJson["age"].toInt();
     double balance = 0.0;
 
-    checkQuery.prepare("SELECT COUNT(*) FROM Accounts WHERE Username = :username");
-    checkQuery.bindValue(":username", username);
+    // Prepare the search criteria
+    QJsonObject searchCriteria;
+    searchCriteria["Username"] = username;
 
-    if (!checkQuery.exec() || !checkQuery.next() || checkQuery.value(0).toInt() > 0)
+    // Check if the username already exists
+    QVariant usernameExists = fetchData("Accounts", "COUNT(*)", searchCriteria);
+
+    if (!usernameExists.isNull() && usernameExists.toInt() > 0)
     {
-        responseJson["errorMessage"] = "exists";
+        responseJson["errorMessage"] = "Username already exists.";
         logger.log("Username already exists.");
-        dbConnection.rollback();
         return responseJson;
     }
 
-    insertAccountsQuery.prepare("INSERT INTO Accounts (Username, Password, Admin) VALUES (:username, :password, :admin)");
-    insertAccountsQuery.bindValue(":username", username);
-    insertAccountsQuery.bindValue(":password", password);
-    insertAccountsQuery.bindValue(":admin", isAdmin);
-
-    if (!insertAccountsQuery.exec())
+    // Start a transaction
+    QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
+    if (!dbConnection.transaction())
     {
-        responseJson["errorMessage"] = "failed";
+        responseJson["errorMessage"] = "Failed to start a transaction for createNewAccount.";
+        logger.log("Failed to start a transaction for createNewAccount.");
+        return responseJson;
+    }
+
+    // Insert the new account into the Accounts table
+    QJsonObject accountData;
+    accountData["Username"] = username;
+    accountData["Password"] = password;
+    accountData["Admin"] = isAdmin;
+
+    qint64 accountNumber = insertData("Accounts", accountData);
+    if (!accountNumber)
+    {
+        responseJson["errorMessage"] = "Failed to insert new account";
         logger.log("Failed to insert new account.");
-        logger.log("Error: " + insertAccountsQuery.lastError().text());
-        return responseJson;
-    }
-    qint64 accountNumber = insertAccountsQuery.lastInsertId().toLongLong();
-
-    insertPersonalDataQuery.prepare("INSERT INTO Users_Personal_Data (AccountNumber, Name, Age, Balance) "
-                              "VALUES (:accountNumber, :name, :age, :balance)");
-    insertPersonalDataQuery.bindValue(":accountNumber", accountNumber);
-    insertPersonalDataQuery.bindValue(":name", name);
-    insertPersonalDataQuery.bindValue(":age", age);
-    insertPersonalDataQuery.bindValue(":balance", balance);
-
-    if (!insertPersonalDataQuery.exec())
-    {
-        responseJson["errorMessage"] = "failed";
-        logger.log("Failed to insert personal data.");
-        logger.log("Error: " + insertPersonalDataQuery.lastError().text());
         dbConnection.rollback();
         return responseJson;
     }
 
-    // Commit transaction
+    // Insert the personal data into the Users_Personal_Data table
+    QJsonObject personalData;
+    personalData["AccountNumber"] = accountNumber;
+    personalData["Name"] = name;
+    personalData["Age"] = age;
+    personalData["Balance"] = balance;
+
+    if (!insertData("Users_Personal_Data", personalData))
+    {
+        responseJson["errorMessage"] = "Failed to insert personal data.";
+        logger.log("Failed to insert personal data.");
+        dbConnection.rollback();
+        return responseJson;
+    }
+
+    // Commit the transaction
     if (!dbConnection.commit())
     {
-        responseJson["errorMessage"] = "failed";
+        responseJson["errorMessage"] = "Failed to commit transaction for createNewAccount.";
         logger.log("Failed to commit transaction for createNewAccount.");
         dbConnection.rollback();
         return responseJson;
     }
 
     responseJson["createAccountSuccess"] = true;
-    responseJson["accountNumber"] = accountNumber;
+    responseJson["accountNumber"] = static_cast<qint64>(accountNumber);
     return responseJson;
 }
 
 QJsonObject DatabaseManager::deleteAccount(QJsonObject requestJson)
 {
-    QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
-    QSqlQuery deleteQuery(dbConnection), deletePersonalDataQuery(dbConnection), deleteTransactionQuery(dbConnection);
-
     QJsonObject responseJson;
     responseJson["deleteAccountSuccess"] = false;
-
-    // Begin transaction
-    if (!dbConnection.transaction())
-    {
-        logger.log("Failed to start a transaction for deleteAccount.");
-        return responseJson;
-    }
 
     // Extract the account number from the request JSON
     qint64 accountNumber = requestJson["accountNumber"].toVariant().toLongLong();
 
-    deleteQuery.prepare("DELETE FROM Accounts WHERE AccountNumber = :accountNumber");
-    deleteQuery.bindValue(":accountNumber", accountNumber);
+    // Prepare the search criteria
+    QJsonObject searchCriteria;
+    searchCriteria["AccountNumber"] = accountNumber;
 
-    if (!deleteQuery.exec())
+    // Start a transaction
+    if (!startDatabaseTransaction())
     {
-        responseJson["errorMessage"] = "failed";
+        responseJson["errorMessage"] = "Failed to start a transaction for deleteAccount.";
+        logger.log("Failed to start a transaction for deleteAccount.");
+        return responseJson;
+    }
+
+    // Delete the account from the Accounts table
+    if (!removeData("Accounts", searchCriteria))
+    {
+        responseJson["errorMessage"] = "Failed to delete account from Accounts table.";
         logger.log("Failed to delete account from Accounts table.");
-        logger.log("Error: " + deleteQuery.lastError().text());
-        dbConnection.rollback();
+        rollbackDatabaseTransaction();
         return responseJson;
     }
 
-    deletePersonalDataQuery.prepare("DELETE FROM Users_Personal_Data WHERE AccountNumber = :accountNumber");
-    deletePersonalDataQuery.bindValue(":accountNumber", accountNumber);
-
-    if (!deletePersonalDataQuery.exec())
+    // Delete the personal data from the Users_Personal_Data table
+    if (!removeData("Users_Personal_Data", searchCriteria))
     {
-        responseJson["errorMessage"] = "failed";
+        responseJson["errorMessage"] = "Failed to delete account from Users_Personal_Data table.";
         logger.log("Failed to delete account from Users_Personal_Data table.");
-        logger.log("Error: " + deletePersonalDataQuery.lastError().text());
-        dbConnection.rollback();
+        rollbackDatabaseTransaction();
         return responseJson;
     }
 
-    deleteTransactionQuery.prepare("DELETE FROM Transaction_History WHERE AccountNumber = :accountNumber");
-    deleteTransactionQuery.bindValue(":accountNumber", accountNumber);
-
-    if (!deleteTransactionQuery.exec())
+    // Delete the transaction history from the Transaction_History table
+    if (!removeData("Transaction_History", searchCriteria))
     {
-        responseJson["errorMessage"] = "failed";
+        responseJson["errorMessage"] = "Failed to delete transaction history for the account.";
         logger.log("Failed to delete transaction history for the account.");
-        logger.log("Error: " + deleteTransactionQuery.lastError().text());
-        dbConnection.rollback();
+        rollbackDatabaseTransaction();
         return responseJson;
     }
 
-    // Commit transaction
-    if (!dbConnection.commit())
+    // Commit the transaction
+    if (!commitDatabaseTransaction())
     {
-        responseJson["errorMessage"] = "failed";
         logger.log("Failed to commit transaction for deleteAccount.");
-        dbConnection.rollback();
+        if (!rollbackDatabaseTransaction())
+        {
+            logger.log("Failed to rollback transaction for deleteAccount.");
+        }
+        responseJson["errorMessage"] = "failed";
         return responseJson;
     }
 
@@ -459,61 +608,54 @@ QJsonObject DatabaseManager::deleteAccount(QJsonObject requestJson)
     return responseJson;
 }
 
-QJsonObject DatabaseManager::fetchAllUserData()
+QJsonObject DatabaseManager::viewDatabase()
 {
-    QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
-    QSqlQuery fetchAllUserDataQuery(dbConnection);
-
     QJsonObject responseJson;
     responseJson["fetchUserDataSuccess"] = false;
 
-    // Begin transaction
-    if (!dbConnection.transaction())
-    {
-        logger.log("Failed to start a transaction for fetchAllUserData.");
-        return responseJson;
-    }
+    QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
+    QSqlQuery fetchAllUserRecordsQuery(dbConnection);
+    fetchAllUserRecordsQuery.prepare
+        ("SELECT Accounts.AccountNumber, Accounts.Username, Accounts.Admin,"
+                                     " Users_Personal_Data.Name, "
+                                     "Users_Personal_Data.Balance,"
+                                     " Users_Personal_Data.Age "
+                                     "FROM Accounts JOIN Users_Personal_Data "
+                                     "ON Accounts.AccountNumber = Users_Personal_Data.AccountNumber");
 
-    fetchAllUserDataQuery.prepare("SELECT Accounts.AccountNumber, Accounts.Username, Users_Personal_Data.Name, "
-                                  "Users_Personal_Data.Balance, Users_Personal_Data.Age "
-                                  "FROM Accounts JOIN Users_Personal_Data "
-                                  "ON Accounts.AccountNumber = Users_Personal_Data.AccountNumber");
-
-    if (!fetchAllUserDataQuery.exec())
+    if (!fetchAllUserRecordsQuery.exec())
     {
         responseJson["errorMessage"] = "failed";
         logger.log("Failed to fetch all user data.");
-        logger.log("Error: " + fetchAllUserDataQuery.lastError().text());
-        dbConnection.rollback();
+        logger.log("Error: " + fetchAllUserRecordsQuery.lastError().text());
         return responseJson;
     }
 
     // Create a JSON array to store user data
     QJsonArray userDataArray;
 
-    while (fetchAllUserDataQuery.next())
+    while (fetchAllUserRecordsQuery.next())
     {
-        QJsonObject userData;
-        userData["AccountNumber"] = fetchAllUserDataQuery.value("AccountNumber").toLongLong();
-        userData["Username"] = fetchAllUserDataQuery.value("Username").toString();
-        userData["Name"] = fetchAllUserDataQuery.value("Name").toString();
-        userData["Balance"] = fetchAllUserDataQuery.value("Balance").toDouble();
-        userData["Age"] = fetchAllUserDataQuery.value("Age").toInt();
+        QJsonObject userDataJson;
+        userDataJson["AccountNumber"] = fetchAllUserRecordsQuery.
+                                        value("AccountNumber").toLongLong();
+        userDataJson["Username"] = fetchAllUserRecordsQuery.
+                                   value("Username").toString();
+        userDataJson["isAdmin"] = fetchAllUserRecordsQuery.
+                                  value("Admin").toBool();
+        userDataJson["Name"] = fetchAllUserRecordsQuery.
+                               value("Name").toString();
+        userDataJson["Balance"] = fetchAllUserRecordsQuery.
+                                  value("Balance").toDouble();
+        userDataJson["Age"] = fetchAllUserRecordsQuery.
+                              value("Age").toInt();
 
-        userDataArray.append(userData);
-    }
-
-    // Commit transaction
-    if (!dbConnection.commit())
-    {
-        responseJson["errorMessage"] = "failed";
-        logger.log("Failed to commit transaction for fetchAllUserData.");
-        dbConnection.rollback();
-        return responseJson;
+        userDataArray.append(userDataJson);
     }
 
     responseJson["fetchUserDataSuccess"] = true;
     responseJson["userData"] = userDataArray;
+
     return responseJson;
 }
 
@@ -525,26 +667,19 @@ QJsonObject DatabaseManager::viewTransactionHistory(QJsonObject requestJson)
     QJsonObject responseJson;
     responseJson["viewTransactionHistorySuccess"] = false;
 
-    // Begin transaction
-    if (!dbConnection.transaction())
-    {
-        logger.log("Failed to start a transaction for viewTransactionHistory.");
-        return responseJson;
-    }
-
     // Extract the account number from the request JSON
     qint64 accountNumber = requestJson["accountNumber"].toVariant().toLongLong();
 
-    transactionHistoryQuery.prepare("SELECT TransactionID, Date, Time, Amount FROM Transaction_History "
-                                    "WHERE AccountNumber = :accountNumber ORDER BY Date DESC, Time DESC");
+    transactionHistoryQuery.prepare
+        ("SELECT TransactionID, Date, Time, Amount FROM Transaction_History "
+         "WHERE AccountNumber = :accountNumber ORDER BY Date DESC, Time DESC");
     transactionHistoryQuery.bindValue(":accountNumber", accountNumber);
 
     if (!transactionHistoryQuery.exec())
     {
-        responseJson["errorMessage"] = "failed";
+        responseJson["errorMessage"] = "Database query execution failed.";
         logger.log("Failed to fetch transaction history.");
         logger.log("Error: " + transactionHistoryQuery.lastError().text());
-        dbConnection.rollback();
         return responseJson;
     }
 
@@ -554,98 +689,110 @@ QJsonObject DatabaseManager::viewTransactionHistory(QJsonObject requestJson)
     while (transactionHistoryQuery.next())
     {
         QJsonObject transactionObj;
-        transactionObj["TransactionID"] = transactionHistoryQuery.value("TransactionID").toLongLong();
-        transactionObj["Date"] = transactionHistoryQuery.value("Date").toString();
-        transactionObj["Time"] = transactionHistoryQuery.value("Time").toString();
-        transactionObj["Amount"] = transactionHistoryQuery.value("Amount").toDouble();
+        transactionObj["TransactionID"] = transactionHistoryQuery.
+                                          value("TransactionID").toLongLong();
+        transactionObj["Date"] = transactionHistoryQuery.
+                                 value("Date").toString();
+        transactionObj["Time"] = transactionHistoryQuery.
+                                 value("Time").toString();
+        transactionObj["Amount"] = transactionHistoryQuery.
+                                   value("Amount").toDouble();
 
         transactionHistoryArray.append(transactionObj);
     }
 
-    // Commit transaction
-    if (!dbConnection.commit())
+    // Check if any data was fetched
+    if (transactionHistoryArray.isEmpty())
     {
-        responseJson["errorMessage"] = "failed";
-        logger.log("Failed to commit transaction for viewTransactionHistory.");
-        dbConnection.rollback();
+        responseJson["errorMessage"] =
+            "No transaction history found for the given account number.";
+        logger.log("No transaction history found for account number: "
+                   + QString::number(accountNumber));
         return responseJson;
     }
 
     responseJson["viewTransactionHistorySuccess"] = true;
     responseJson["transactionHistory"] = transactionHistoryArray;
+
     return responseJson;
 }
 
 QJsonObject DatabaseManager::updateUserData(QJsonObject requestJson)
 {
-    QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
-    QSqlQuery checkQuery(dbConnection), updateQuery(dbConnection), updatePersonalDataQuery(dbConnection);
-
     QJsonObject responseJson;
     responseJson["updateSuccess"] = false;
-
-    // Begin transaction
-    if (!dbConnection.transaction())
-    {
-        logger.log("Failed to start a transaction for updateUserData.");
-        return responseJson;
-    }
 
     // Extract the necessary data from the request JSON
     QString username = requestJson["username"].toString();
     QString name = requestJson["name"].toString();
     QString password = requestJson["password"].toString();
 
-    checkQuery.prepare("SELECT AccountNumber FROM Accounts WHERE Username = :username");
-    checkQuery.bindValue(":username", username);
+    // Prepare the search criteria
+    QJsonObject searchCriteria;
+    searchCriteria["Username"] = username;
 
-    if (!checkQuery.exec() || !checkQuery.next())
+    // Start a transaction
+    if (!startDatabaseTransaction())
+    {
+        responseJson["errorMessage"] = "Failed to start a transaction for updateUserData.";
+        logger.log("Failed to start a transaction for updateUserData.");
+        return responseJson;
+    }
+
+    // Fetch the account number
+    QVariant accountNumberVariant = fetchData("Accounts", "AccountNumber", searchCriteria);
+    if (!accountNumberVariant.isValid())
     {
         responseJson["errorMessage"] = "Account not found";
         logger.log("Account not found.");
-        dbConnection.rollback();
+        rollbackDatabaseTransaction();
         return responseJson;
     }
-    qint64 accountNumber = checkQuery.value(0).toLongLong();
+    qint64 accountNumber = accountNumberVariant.toLongLong();
 
+    // Prepare the search criteria for updating data
+    QJsonObject updateSearchCriteria;
+    updateSearchCriteria["AccountNumber"] = accountNumber;
+
+    // Update the password in the Accounts table
     if (!password.isEmpty())
     {
-        updateQuery.prepare("UPDATE Accounts SET Password = :password WHERE Username = :username");
-        updateQuery.bindValue(":username", username);
-        updateQuery.bindValue(":password", password);
+        QJsonObject passwordData;
+        passwordData["Password"] = password;
 
-        if (!updateQuery.exec())
+        if (!updateData("Accounts", passwordData, searchCriteria))
         {
-            responseJson["errorMessage"] = "Failed to update password";
+            responseJson["errorMessage"] = "failed to update password";
             logger.log("Failed to update password.");
-            logger.log("Error: " + updateQuery.lastError().text());
-            dbConnection.rollback();
+            rollbackDatabaseTransaction();
             return responseJson;
         }
     }
 
+    // Update the name in the Users_Personal_Data table
     if (!name.isEmpty())
     {
-        updatePersonalDataQuery.prepare("UPDATE Users_Personal_Data SET Name = :name WHERE AccountNumber = :accountNumber");
-        updatePersonalDataQuery.bindValue(":accountNumber", accountNumber);
-        updatePersonalDataQuery.bindValue(":name", name);
+        QJsonObject nameData;
+        nameData["Name"] = name;
 
-        if (!updatePersonalDataQuery.exec())
+        if (!updateData("Users_Personal_Data", nameData, updateSearchCriteria))
         {
-            responseJson["errorMessage"] = "Failed to update name";
+            responseJson["errorMessage"] = "failed to update name";
             logger.log("Failed to update name.");
-            logger.log("Error: " + updatePersonalDataQuery.lastError().text());
-            dbConnection.rollback();
+            rollbackDatabaseTransaction();
             return responseJson;
         }
     }
 
-    // Commit transaction
-    if (!dbConnection.commit())
+    // Commit the transaction
+    if (!commitDatabaseTransaction())
     {
-        responseJson["errorMessage"] = "failed";
         logger.log("Failed to commit transaction for updateUserData.");
-        dbConnection.rollback();
+        if (!rollbackDatabaseTransaction())
+        {
+            logger.log("Failed to rollback transaction for updateUserData.");
+        }
+        responseJson["errorMessage"] = "Failed to commit transaction.";
         return responseJson;
     }
 
@@ -655,81 +802,81 @@ QJsonObject DatabaseManager::updateUserData(QJsonObject requestJson)
 
 QJsonObject DatabaseManager::makeTransaction(QJsonObject requestJson)
 {
-    QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
-
     QJsonObject responseJson;
     responseJson["transactionSuccess"] = false;
 
-    // Begin transaction
-    if (!dbConnection.transaction())
-    {
-        logger.log("Failed to start a transaction for makeTransaction.");
-        return responseJson;
-    }
-
+    // Extract the necessary data from the request JSON
     qint64 accountNumber = requestJson["accountNumber"].toVariant().toLongLong();
     double amount = requestJson["amount"].toDouble();
 
-    // Create a QJsonObject for getAccountBalance
-    QJsonObject accountJson;
-    accountJson["accountNumber"] = accountNumber;
+    // Prepare the search criteria
+    QJsonObject searchCriteria;
+    searchCriteria["AccountNumber"] = accountNumber;
+
+    // Start a transaction
+    if (!startDatabaseTransaction())
+    {
+        responseJson["errorMessage"] = "Failed to start transaction.";
+        return responseJson;
+    }
+
+    // Fetch the current balance
+    QVariant currentBalance = fetchData("Users_Personal_Data", "Balance",
+                                        searchCriteria);
 
     // Check if the balance is sufficient
-    double currentBalance = getAccountBalance(accountJson)["balance"].toDouble();
-    if (currentBalance < 0 || currentBalance + amount < 0)
+    if (currentBalance.toDouble() < 0 || currentBalance.toDouble() + amount < 0)
     {
         responseJson["errorMessage"] = "Insufficient balance";
-        logger.log("Insufficient balance.");
-        dbConnection.rollback();
+        rollbackDatabaseTransaction();
         return responseJson;
     }
 
     // Update the balance
-    if (!updateAccountBalance(accountNumber, amount))
+    QJsonObject balanceData;
+    balanceData["Balance"] = currentBalance.toDouble() + amount;
+
+    if (!updateData("Users_Personal_Data", balanceData, searchCriteria))
     {
-        responseJson["errorMessage"] = "Failed to update balance";
-        logger.log("Failed to update balance.");
-        dbConnection.rollback();
+        responseJson["errorMessage"] = "Failed to update Balance";
+        rollbackDatabaseTransaction();
         return responseJson;
     }
 
-    // Log the transaction in the Transaction_History table
+    // Log the transaction
     if (!logTransaction(accountNumber, amount))
     {
-        responseJson["errorMessage"] = "Failed to log transaction";
-        logger.log("Failed to log transaction.");
-        dbConnection.rollback();
+        responseJson["errorMessage"] = "Failed to log Transaction";
+        rollbackDatabaseTransaction();
         return responseJson;
     }
 
-    // Commit transaction
-    if (!dbConnection.commit())
+    // Commit the transaction
+    if (!commitDatabaseTransaction())
     {
-        responseJson["errorMessage"] = "failed";
         logger.log("Failed to commit transaction for makeTransaction.");
-        dbConnection.rollback();
+        if (!rollbackDatabaseTransaction())
+        {
+            logger.log("Failed to rollback transaction for makeTransaction.");
+        }
+        responseJson["errorMessage"] = "Failed to commit Transaction";
         return responseJson;
     }
 
     responseJson["transactionSuccess"] = true;
-    responseJson["newBalance"] = getAccountBalance(accountJson)["balance"].toDouble();
+
+    // Fetch the updated balance from the database
+    responseJson["newBalance"] =
+        fetchData("Users_Personal_Data", "Balance", searchCriteria).toDouble();
     return responseJson;
 }
 
 QJsonObject DatabaseManager::makeTransfer(QJsonObject requestJson)
 {
-    QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
-
     QJsonObject responseJson;
     responseJson["transferSuccess"] = false;
 
-    // Begin transaction
-    if (!dbConnection.transaction())
-    {
-        logger.log("Failed to start a transaction for makeTransfer.");
-        return responseJson;
-    }
-
+    // Extract the necessary data from the request JSON
     qint64 fromAccountNumber = requestJson["fromAccountNumber"].toVariant().toLongLong();
     qint64 toAccountNumber = requestJson["toAccountNumber"].toVariant().toLongLong();
     double amount = requestJson["amount"].toDouble();
@@ -738,98 +885,103 @@ QJsonObject DatabaseManager::makeTransfer(QJsonObject requestJson)
     if (fromAccountNumber == toAccountNumber)
     {
         responseJson["errorMessage"] = "Cannot transfer money to yourself!";
-        logger.log("Cannot transfer money to yourself.");
-        dbConnection.rollback();
         return responseJson;
     }
 
-    // Check if the 'from' account has sufficient balance
-    QJsonObject fromAccountJson;
-    fromAccountJson["accountNumber"] = QJsonValue::fromVariant(fromAccountNumber);
-    double fromAccountBalance = getAccountBalance(fromAccountJson)["balance"].toDouble();
-    if (fromAccountBalance < amount)
+    // Prepare the search criteria
+    QJsonObject fromSearchCriteria;
+    fromSearchCriteria["AccountNumber"] = fromAccountNumber;
+    QJsonObject toSearchCriteria;
+    toSearchCriteria["AccountNumber"] = toAccountNumber;
+
+    // Start a transaction
+    if (!startDatabaseTransaction())
     {
-        responseJson["errorMessage"] = "Insufficient balance for the transfer";
-        logger.log("Insufficient balance for the transfer.");
-        dbConnection.rollback();
+        responseJson["errorMessage"] = "failed";
+        return responseJson;
+    }
+
+    // Fetch the 'from' account balance
+    QVariant fromBalance = fetchData("Users_Personal_Data", "Balance", fromSearchCriteria);
+
+    // Check if the 'from' account has sufficient balance
+    if (fromBalance.toDouble() < amount)
+    {
+        responseJson["errorMessage"] = "Insufficient balance";
+        rollbackDatabaseTransaction();
+        return responseJson;
+    }
+
+    // Fetch the 'to' account balance
+    QVariant toBalance = fetchData("Users_Personal_Data", "Balance", toSearchCriteria);
+
+    // Check if the 'to' account exists
+    if (!toBalance.isValid())
+    {
+        responseJson["errorMessage"] = "The 'to' account does not exist";
+        rollbackDatabaseTransaction();
         return responseJson;
     }
 
     // Update the 'from' and 'to' account balances
-    if (!updateAccountBalance(fromAccountNumber, -amount) || !updateAccountBalance(toAccountNumber, amount))
+    QJsonObject fromBalanceData, toBalanceData;
+    fromBalanceData["Balance"] = fromBalance.toDouble() - amount;
+    toBalanceData["Balance"] = toBalance.toDouble() + amount;
+
+    if (!updateData("Users_Personal_Data", fromBalanceData, fromSearchCriteria)
+        || !updateData("Users_Personal_Data", toBalanceData, toSearchCriteria))
     {
-        responseJson["errorMessage"] = "Failed to update account balance";
-        logger.log("Failed to update account balance.");
-        dbConnection.rollback();
+        responseJson["errorMessage"] = "Failed to update transaction rolling back";
+        rollbackDatabaseTransaction();
         return responseJson;
     }
 
     // Log the transfer in the Transaction_History table for both 'from' and 'to' accounts
-    if (!logTransaction(fromAccountNumber, -amount) || !logTransaction(toAccountNumber, amount))
+    if (!logTransaction(fromAccountNumber, -amount) ||
+        !logTransaction(toAccountNumber, amount))
     {
-        responseJson["errorMessage"] = "Failed to log transaction";
-        logger.log("Failed to log transaction.");
-        dbConnection.rollback();
+        responseJson["errorMessage"] = "Failed to log transaction rolling back";
+        rollbackDatabaseTransaction();
         return responseJson;
     }
 
-    // Commit transaction
-    if (!dbConnection.commit())
+    // Commit the transaction
+    if (!commitDatabaseTransaction())
     {
-        responseJson["errorMessage"] = "failed";
         logger.log("Failed to commit transaction for makeTransfer.");
-        dbConnection.rollback();
+        if (!rollbackDatabaseTransaction())
+        {
+            logger.log("Failed to rollback transaction for makeTransfer.");
+        }
+        responseJson["errorMessage"] = "Failed to rollback transaction for makeTransfer.";
         return responseJson;
     }
 
     responseJson["transferSuccess"] = true;
-    QJsonObject toAccountJson;
-    toAccountJson["accountNumber"] = QJsonValue::fromVariant(toAccountNumber);
-    responseJson["newFromBalance"] = getAccountBalance(fromAccountJson)["balance"].toDouble();
-    responseJson["newToBalance"] = getAccountBalance(toAccountJson)["balance"].toDouble();
+
+    // Fetch the updated 'from' and 'to' account balances from the database
+    responseJson["newFromBalance"] =
+        fetchData("Users_Personal_Data", "Balance", fromSearchCriteria).toDouble();
+    responseJson["newToBalance"] =
+        fetchData("Users_Personal_Data", "Balance", toSearchCriteria).toDouble();
     return responseJson;
-}
-
-bool DatabaseManager::updateAccountBalance(qint64 accountNumber, double amount)
-{
-    QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
-    QSqlQuery updateBalanceQuery(dbConnection);
-
-    // Get the current balance
-    QJsonObject accountJson;
-    accountJson["accountNumber"] = QJsonValue::fromVariant(accountNumber);
-    double currentBalance = getAccountBalance(accountJson)["balance"].toDouble();
-
-    // Calculate the new balance
-    double newBalance = currentBalance + amount;
-
-    // Update the balance in the database
-    updateBalanceQuery.prepare("UPDATE Users_Personal_Data SET Balance = :balance WHERE AccountNumber = :accountNumber");
-    updateBalanceQuery.bindValue(":balance", newBalance);
-    updateBalanceQuery.bindValue(":accountNumber", accountNumber);
-
-    bool success = updateBalanceQuery.exec();
-    return success;
 }
 
 bool DatabaseManager::logTransaction(qint64 accountNumber, double amount)
 {
-    QSqlDatabase dbConnection = QSqlDatabase::database(connectionName);
-    QSqlQuery logTransactionQuery(dbConnection);
-
     // Get the current date and time
     QDateTime currentDateTime = QDateTime::currentDateTime();
     QString formattedDate = currentDateTime.toString("dd-MM-yyyy");
     QString formattedTime = currentDateTime.toString("hh:mm:ss");
 
-    // Log the transaction in the database
-    logTransactionQuery.prepare("INSERT INTO Transaction_History (AccountNumber, Date, Time, Amount) "
-                                "VALUES (:accountNumber, :date, :time, :amount)");
-    logTransactionQuery.bindValue(":accountNumber", accountNumber);
-    logTransactionQuery.bindValue(":date", formattedDate);
-    logTransactionQuery.bindValue(":time", formattedTime);
-    logTransactionQuery.bindValue(":amount", amount);
+    // Prepare the transaction data
+    QJsonObject transactionData;
+    transactionData["AccountNumber"] = accountNumber;
+    transactionData["Date"] = formattedDate;
+    transactionData["Time"] = formattedTime;
+    transactionData["Amount"] = amount;
 
-    bool success = logTransactionQuery.exec();
+    // Log the transaction in the database
+    bool success = insertData("Transaction_History", transactionData);
     return success;
 }

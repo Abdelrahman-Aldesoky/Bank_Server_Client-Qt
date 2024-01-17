@@ -51,6 +51,11 @@
          <string>Age</string>
         </property>
        </column>
+       <column>
+        <property name="text">
+         <string>Admin Status</string>
+        </property>
+       </column>
       </widget>
      </item>
      <item>
