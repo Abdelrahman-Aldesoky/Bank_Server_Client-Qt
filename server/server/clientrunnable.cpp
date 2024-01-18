@@ -8,6 +8,13 @@ ClientRunnable::ClientRunnable(qintptr socketDescriptor, QObject *parent)
 
 ClientRunnable::~ClientRunnable()
 {
+    if(databaseManager != nullptr)
+    {
+        databaseManager->closeConnection();
+        delete databaseManager;
+        QSqlDatabase::removeDatabase(QString::number(socketDescriptor));
+        databaseManager = nullptr;
+    }
     logger.log("Object Destroyed.");
 }
 
@@ -22,6 +29,15 @@ void ClientRunnable::run()
         return;
     }
 
+    // Create databaseManager object for the client connected
+    databaseManager = new DatabaseManager(QString::number(socketDescriptor), this);
+    if(databaseManager == nullptr)
+    {
+        logger.log("Failed to create DatabaseManager.");
+        return;
+    }
+    databaseManager->openConnection();
+
     connect(clientSocket, &QTcpSocket::readyRead, this, &ClientRunnable::readyRead);
     connect(clientSocket, &QTcpSocket::disconnected, this, &ClientRunnable::socketDisconnected);
     logger.log(QString("Client setup completed in thread ID: %1").
@@ -31,7 +47,7 @@ void ClientRunnable::run()
 void ClientRunnable::readyRead()
 {
     QByteArray data = clientSocket->readAll();
-    RequestHandler requestHandler(QString::number(socketDescriptor));
+    RequestHandler requestHandler(databaseManager, this);
     QByteArray responseData = requestHandler.handleRequest(data);
     sendResponseToClient(responseData);
 }

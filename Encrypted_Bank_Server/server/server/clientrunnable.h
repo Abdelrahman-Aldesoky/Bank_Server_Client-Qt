@@ -5,7 +5,8 @@
 #include <QThread>
 #include <QSslSocket>
 #include "RequestHandler.h"
-#include "Logger.h"
+#include "DatabaseManager.h"
+#include "logger.h"
 
 class ClientRunnable : public QObject
 {
@@ -31,6 +32,7 @@ private slots:
 private:
     qintptr socketDescriptor;
     QSslSocket *clientSocket = nullptr;
+    DatabaseManager* databaseManager = nullptr;
     Logger logger;
 };
 

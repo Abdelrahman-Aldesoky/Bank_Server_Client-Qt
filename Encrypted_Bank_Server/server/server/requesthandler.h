@@ -5,28 +5,30 @@
 #include <QByteArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMutex>
 
-#include "databasemanager.h"
-#include "logger.h"
+#include "AccountManager.h"
+#include "TransactionManager.h"
+#include "DatabaseManager.h"
+#include "Logger.h"
 
 class RequestHandler : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit RequestHandler(const QString &connectionName, QObject *parent = nullptr);
+    RequestHandler(DatabaseManager* databaseManager, QObject *parent = nullptr);
     ~RequestHandler();
+
     QByteArray handleRequest(QByteArray requestData);
 
-signals:
-    void responseReady(QByteArray responseData);
-
 private:
-    DatabaseManager *databaseManager;
+    QMutex mutex;
     QString connectionName;
+    AccountManager *accountManager = nullptr;
+    TransactionManager *transactionManager = nullptr;
+    DatabaseManager* databaseManager = nullptr;
     Logger logger;
-
-    QByteArray createResponse(QJsonObject responseJson);
 };
 
 #endif // REQUESTHANDLER_H

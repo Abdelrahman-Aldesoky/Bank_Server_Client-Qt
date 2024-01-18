@@ -4,8 +4,10 @@
 #include <QObject>
 #include <QThread>
 #include <QTcpSocket>
-#include "RequestHandler.h"
+
 #include "Logger.h"
+#include "RequestHandler.h"
+#include "DatabaseManager.h"
 
 class ClientRunnable : public QObject
 {
@@ -29,6 +31,7 @@ private slots:
 private:
     qintptr socketDescriptor;
     QTcpSocket *clientSocket = nullptr;
+    DatabaseManager* databaseManager = nullptr;
     Logger logger;
 };
 

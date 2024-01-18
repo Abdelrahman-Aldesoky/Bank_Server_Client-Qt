@@ -7,12 +7,14 @@ CONFIG += c++17 cmdline static
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+        accountmanager.cpp \
         clientrunnable.cpp \
         databasemanager.cpp \
         logger.cpp \
         main.cpp \
         requesthandler.cpp \
-        server.cpp
+        server.cpp \
+        transactionmanager.cpp
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
@@ -20,8 +22,10 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
 HEADERS += \
+    accountmanager.h \
     clientrunnable.h \
     databasemanager.h \
     logger.h \
     requesthandler.h \
-    server.h
+    server.h \
+    transactionmanager.h

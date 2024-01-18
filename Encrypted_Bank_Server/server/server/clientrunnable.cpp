@@ -8,6 +8,13 @@ ClientRunnable::ClientRunnable(qintptr socketDescriptor, QObject *parent)
 
 ClientRunnable::~ClientRunnable()
 {
+    if(databaseManager != nullptr)
+    {
+        databaseManager->closeConnection();
+        delete databaseManager;
+        QSqlDatabase::removeDatabase(QString::number(socketDescriptor));
+        databaseManager = nullptr;
+    }
     logger.log("Object Destroyed.");
 }
 
