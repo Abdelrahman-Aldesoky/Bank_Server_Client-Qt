@@ -9,6 +9,8 @@ This application is a banking system implemented as a client-server model using 
 - **Server**: The server handles various banking operations such as login, account creation, balance viewing, transaction history, etc. It uses the `RequestHandler` class to process different types of requests from clients and the `DatabaseManager` class to manage all database-related operations.
 - **Client**: The client provides separate interfaces for administrators and regular users. The `AdminWindow` class allows administrators to view account numbers, balances, transaction history, and database information, and also create and delete accounts. The `UserWindow` class allows regular users to view their account number, balance, and transaction history, and also make transactions and transfers.
 - **Database**: The application uses SQLite for database management. The database consists of three separate tables: `Accounts`, `Users_Personal_Data`, and `Transaction_History`.
+- **Backup Feature**: Implements routine backups every 6 hours, each uniquely timestamped. Ensures efficient storage management by automatically deleting backups older than a month. Prioritizes data integrity by initiating backup before server closure on SIGTERM, SIGINT, and SIGHUP on (Linux) can be enabled. 
+This feature enhances data safety while maintaining an efficient storage system.
 
 ## Database Structure
 - **Accounts table**: Stores account number (primary key), username, password, and admin status. A default admin account is created during table creation.
@@ -22,8 +24,8 @@ To use this application, start the server application first. Then, start the cli
 To install this application, follow these steps:
 
 1. Extract the files located in the "Executables" folder on a Windows machine.
-2. Install OpenSSL on your machine. You can download it from here.
-3. Generate your own private key and self-signed certificate using OpenSSL. You can use the following commands in the 
+2. Install OpenSSL on your machine. You can download it from [here](https://www.openssl.org/source/).
+3. Generate your own private key and self-signed certificate using OpenSSL. This only applies to the secure version.
 
 ## Setting Up your key and certificate Instructions
 

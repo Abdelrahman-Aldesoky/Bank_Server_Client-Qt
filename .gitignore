@@ -6,5 +6,5 @@
 /SecureBankServerClient/client/build-client-Desktop_Qt_6_6_1_MinGW_64_bit-Debug/*
 /SecureBankServerClient/server/build-server-Desktop_Qt_6_6_1_MinGW_64_bit-Debug/*
 /SecureBankServerClient/server/build-server-Desktop_Qt_6_6_1_MinGW_64_bit-Release/*
-/V1.1Encrypted/*
-/V0.6NonEncrypted/*
+/V1.2Encrypted/*
+/V0.7NonEncrypted/*

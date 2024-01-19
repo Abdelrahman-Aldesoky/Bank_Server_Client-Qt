@@ -326,4 +326,4 @@ bool DatabaseManager::removeData(const QString &tableName,
     }
 
     return true;
-}//315 line
+}

@@ -8,6 +8,7 @@ CONFIG += c++17 cmdline static
 
 SOURCES += \
         accountmanager.cpp \
+        backupmanager.cpp \
         clientrunnable.cpp \
         databasemanager.cpp \
         logger.cpp \
@@ -23,6 +24,7 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 HEADERS += \
     accountmanager.h \
+    backupmanager.h \
     clientrunnable.h \
     databasemanager.h \
     logger.h \
