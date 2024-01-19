@@ -3,12 +3,15 @@
 
 #include <QMainWindow>
 #include <QSslSocket>
+#include <QSslConfiguration>
+#include <QSslError>
 #include <QRegularExpression>
 #include <QMessageBox>
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonParseError>
+#include <QFile>
 #include <QDebug>
 
 namespace Ui

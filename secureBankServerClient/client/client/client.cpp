@@ -7,7 +7,6 @@
 const QRegularExpression client::usernameRegex("^[a-zA-Z0-9_]*$");
 const QRegularExpression client::passwordRegex("\\s");
 
-// Constructor
 client::client(QWidget *parent)
     : QMainWindow(parent),
       ui(new Ui::client),
@@ -21,6 +20,19 @@ client::client(QWidget *parent)
 
     // Set the protocol to TLS 1.2
     socket->setProtocol(QSsl::TlsV1_2OrLater);
+
+    // Load the certificate from the file
+    QFile certFile(QStringLiteral("server.crt"));
+    certFile.open(QIODevice::ReadOnly);
+    QSslCertificate cert(&certFile, QSsl::Pem);
+    certFile.close();
+
+    // Add the certificate to the socket's CA certificates
+    QList<QSslCertificate> caCerts = socket->sslConfiguration().caCertificates();
+    caCerts.append(cert);
+    QSslConfiguration sslConfig = socket->sslConfiguration();
+    sslConfig.setCaCertificates(caCerts);
+    socket->setSslConfiguration(sslConfig);
 
     // handle state changed for connection
     connect(socket, &QSslSocket::stateChanged, this, &client::handleStateChanged);
@@ -50,8 +62,11 @@ client::~client()
 
 void client::connectToServer()
 {
+    // Get the IP address from the line edit
+    QString ipAddress = ui->lineEdit_ip->text();
+
     // Attempt to connect to the server encrypted
-    socket->connectToHostEncrypted("localhost", 54321);
+    socket->connectToHostEncrypted(ipAddress, 19908);
 }
 
 void client::handleStateChanged(QAbstractSocket::SocketState socketState)

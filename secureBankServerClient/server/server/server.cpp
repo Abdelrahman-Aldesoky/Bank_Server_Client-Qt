@@ -4,10 +4,15 @@ Server::Server(QObject *parent)
     : QTcpServer(parent), logger("Server")
 {
     logger.log("Object Created.");
-    if (!listen(QHostAddress::LocalHost, 54321)) {
+    if (!listen(QHostAddress::Any, 19908))
+    {
         logger.log("Failed to start server: " + errorString());
-    } else {
-        logger.log("Listening on Port 54321");
+    }
+    else
+    {
+        QString ipAddress = serverAddress().toString();
+        quint16 port = serverPort();
+        logger.log("Listening on IP: " + ipAddress + ", Port: " + QString::number(port));
     }
 }
 
@@ -33,12 +38,16 @@ void Server::incomingConnection(qintptr socketDescriptor)
     ClientRunnable* clientRunnable = new ClientRunnable(socketDescriptor);
     clientRunnable->moveToThread(clientThread);
 
-    connect(clientThread, &QThread::started, clientRunnable, &ClientRunnable::run);
-    connect(clientRunnable, &ClientRunnable::clientDisconnected, this, &Server::handleClientDisconnected);
-    connect(clientRunnable, &ClientRunnable::destroyed, clientThread, &QThread::quit);
+    connect(clientThread, &QThread::started,
+            clientRunnable, &ClientRunnable::run);
+    connect(clientRunnable, &ClientRunnable::clientDisconnected,
+            this, &Server::handleClientDisconnected);
+    connect(clientRunnable, &ClientRunnable::destroyed,
+            clientThread, &QThread::quit);
 
     clientThread->start();
-    logger.log(QString("Client connected with socket descriptor: %1").arg(socketDescriptor));
+    logger.log(QString("Client connected with socket descriptor: %1").
+               arg(socketDescriptor));
 }
 
 void Server::handleClientDisconnected(qintptr socketDescriptor)
@@ -47,5 +56,6 @@ void Server::handleClientDisconnected(qintptr socketDescriptor)
     clientThreads.value(socketDescriptor)->wait();
     delete clientThreads.value(socketDescriptor);
     clientThreads.remove(socketDescriptor);
-    logger.log(QString("Client disconnected with socket descriptor: %1").arg(socketDescriptor));
+    logger.log(QString("Client disconnected with socket descriptor: %1").
+               arg(socketDescriptor));
 }
