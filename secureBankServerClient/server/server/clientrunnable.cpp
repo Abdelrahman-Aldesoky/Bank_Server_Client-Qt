@@ -59,6 +59,9 @@ void ClientRunnable::run()
 void ClientRunnable::handleEncrypted()
 {
     logger.log("SSL handshake completed successfully.");
+    logger.log(QString("Client connected with IP: %1, socket descriptor: %2").
+               arg(clientSocket->peerAddress().toString()).
+               arg(socketDescriptor));
 }
 
 void ClientRunnable::readyRead()

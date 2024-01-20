@@ -48,6 +48,8 @@ void Server::incomingConnection(qintptr socketDescriptor)
     clientThread->start();
     logger.log(QString("Client connected with socket descriptor: %1").
                arg(socketDescriptor));
+    logger.log(QString("Number of connected clients: %1").
+               arg(clientThreads.size()));
 }
 
 void Server::handleClientDisconnected(qintptr socketDescriptor)
@@ -58,4 +60,6 @@ void Server::handleClientDisconnected(qintptr socketDescriptor)
     clientThreads.remove(socketDescriptor);
     logger.log(QString("Client disconnected with socket descriptor: %1").
                arg(socketDescriptor));
+    logger.log(QString("Number of connected clients: %1").
+               arg(clientThreads.size()));
 }
