@@ -19,6 +19,7 @@ public:
     ~UserWindow();
 
 signals:
+    void reconnectNeeded();
     void finished();
 
 private slots:

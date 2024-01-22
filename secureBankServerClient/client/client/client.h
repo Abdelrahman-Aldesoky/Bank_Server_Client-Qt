@@ -28,6 +28,7 @@ public:
     ~client();
 
 public slots:
+    void ensureConnected();
     void showOldWindow();
     void readyRead();
 

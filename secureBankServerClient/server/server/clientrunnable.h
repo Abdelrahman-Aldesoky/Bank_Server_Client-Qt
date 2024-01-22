@@ -4,9 +4,14 @@
 #include <QObject>
 #include <QThread>
 #include <QSslSocket>
+#include <QTimer>
+
 #include "RequestHandler.h"
 #include "DatabaseManager.h"
 #include "logger.h"
+
+// Idle time out 30 seconds
+#define IDLE_TIMEOUT 30000
 
 class ClientRunnable : public QObject
 {
@@ -26,6 +31,7 @@ signals:
 
 private slots:
     void handleEncrypted();
+    void disconnectIdleClient();
     void socketDisconnected();
     void handleSslErrors(const QList<QSslError> &errors);
 
@@ -33,6 +39,7 @@ private:
     qintptr socketDescriptor;
     QSslSocket *clientSocket = nullptr;
     DatabaseManager* databaseManager = nullptr;
+    QTimer *idleTimer = nullptr;
     Logger logger;
 };
 

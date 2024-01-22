@@ -3,6 +3,17 @@
 ClientRunnable::ClientRunnable(qintptr socketDescriptor, QObject *parent)
     : QObject(parent), socketDescriptor(socketDescriptor), logger("ClientRunnable")
 {
+    if (socketDescriptor == -1)
+    {
+        logger.log("Invalid socket descriptor.");
+        return;
+    }
+
+    logger.log("Object Created.");
+    idleTimer = new QTimer(this);
+    connect(idleTimer, &QTimer::timeout, this, &ClientRunnable::disconnectIdleClient);
+    idleTimer->start(IDLE_TIMEOUT);
+
     logger.log("Object Created.");
 }
 
@@ -14,6 +25,27 @@ ClientRunnable::~ClientRunnable()
         delete databaseManager;
         QSqlDatabase::removeDatabase(QString::number(socketDescriptor));
         databaseManager = nullptr;
+    }
+
+    // Check if the database connection was removed successfully
+    if(QSqlDatabase::contains(QString::number(socketDescriptor)))
+    {
+        logger.log("Failed to remove database connection.");
+    }
+    else
+    {
+        logger.log("Database connection removed successfully.");
+    }
+    
+    // Delete the QTimer object
+    if(idleTimer != nullptr)
+    {
+        if(idleTimer->isActive())
+        {
+            idleTimer->stop();
+        }
+        delete idleTimer;
+        idleTimer = nullptr;
     }
     logger.log("Object Destroyed.");
 }
@@ -66,6 +98,9 @@ void ClientRunnable::handleEncrypted()
 
 void ClientRunnable::readyRead()
 {
+    // Reset idle timer on every message received
+    idleTimer->start(IDLE_TIMEOUT);
+
     QByteArray data = clientSocket->readAll();
     RequestHandler requestHandler(databaseManager, this);
     QByteArray responseData = requestHandler.handleRequest(data);
@@ -85,6 +120,12 @@ void ClientRunnable::handleSslErrors(const QList<QSslError> &errors)
     for (const QSslError &error : errors) {
         logger.log("SSL error: " + error.errorString());
     }
+}
+
+void ClientRunnable::disconnectIdleClient()
+{
+    logger.log("Client idle. Disconnecting...");
+    clientSocket->disconnectFromHost();
 }
 
 void ClientRunnable::socketDisconnected()

@@ -69,6 +69,24 @@ void client::connectToServer()
     socket->connectToHostEncrypted(ipAddress, 19908);
 }
 
+void client::ensureConnected()
+{
+    // Check if the socket is connected
+    if (socket->state() != QAbstractSocket::ConnectedState)
+    {
+        // Attempt to reconnect
+        connectToServer();
+        // Wait for the socket to connect 3 seconds
+        if (!socket->waitForConnected(3000))
+        {
+            qDebug() << "Error: Could not connect to server.";
+            QMessageBox::warning(nullptr, "Warning",
+                                 "Could not connect to server. Please try again.",
+                                 QMessageBox::Ok);
+        }
+    }
+}
+
 void client::handleStateChanged(QAbstractSocket::SocketState socketState)
 {
     if (socketState == QAbstractSocket::ConnectedState)
@@ -198,8 +216,15 @@ void client::handleLoginResponse(const QJsonObject &responseObject)
             // Disconnect the readyRead signal from the client slot
             disconnect(socket, &QSslSocket::readyRead, this, &client::readyRead);
             AdminWindow *adminWindow = new AdminWindow(nullptr, accountNumber, socket);
+
             // Connect the finished signal in the AdminWindow object to showOldWindow in the client object
-            connect(adminWindow, &AdminWindow::finished, this, &client::showOldWindow);
+            connect(adminWindow, &AdminWindow::finished,
+                    this, &client::showOldWindow);
+            // Connect the reconnectNeeded signal in the AdminWindow object
+            // to ensureConnected in the client object
+            connect(adminWindow, &AdminWindow::reconnectNeeded,
+                    this, &client::ensureConnected);
+
             qDebug() << adminWindow;
             adminWindow->show();
         }
@@ -208,8 +233,15 @@ void client::handleLoginResponse(const QJsonObject &responseObject)
             // Disconnect the readyRead signal from the client slot
             disconnect(socket, &QSslSocket::readyRead, this, &client::readyRead);
             UserWindow *userWindow = new UserWindow(nullptr, accountNumber, socket);
+
             // Connect the finished signal in the UserWindow object to showOldWindow in the client object
-            connect(userWindow, &UserWindow::finished, this, &client::showOldWindow);
+            connect(userWindow, &UserWindow::finished,
+                    this, &client::showOldWindow);
+            // Connect the reconnectNeeded signal in the UserWindow object
+            // to ensureConnected in the client object
+            connect(userWindow, &UserWindow::reconnectNeeded,
+                    this, &client::ensureConnected);
+
             qDebug() << userWindow;
             userWindow->show();
         }

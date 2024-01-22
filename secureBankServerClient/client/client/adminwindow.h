@@ -19,6 +19,7 @@ public:
     ~AdminWindow();
 
 signals:
+    void reconnectNeeded();
     void finished();
 
 private slots:
