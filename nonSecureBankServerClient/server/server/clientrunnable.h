@@ -4,10 +4,14 @@
 #include <QObject>
 #include <QThread>
 #include <QTcpSocket>
+#include <QTimer>
 
 #include "Logger.h"
 #include "RequestHandler.h"
 #include "DatabaseManager.h"
+
+// Idle time out 30 seconds
+#define IDLE_TIMEOUT 30000
 
 class ClientRunnable : public QObject
 {
@@ -26,12 +30,14 @@ signals:
     void clientDisconnected(qintptr socketDescriptor);
 
 private slots:
+    void disconnectIdleClient();
     void socketDisconnected();
 
 private:
     qintptr socketDescriptor;
     QTcpSocket *clientSocket = nullptr;
     DatabaseManager* databaseManager = nullptr;
+    QTimer *idleTimer = nullptr;
     Logger logger;
 };
 

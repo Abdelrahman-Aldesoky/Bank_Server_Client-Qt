@@ -9,7 +9,6 @@ ClientRunnable::ClientRunnable(qintptr socketDescriptor, QObject *parent)
         return;
     }
 
-    logger.log("Object Created.");
     idleTimer = new QTimer(this);
     connect(idleTimer, &QTimer::timeout, this, &ClientRunnable::disconnectIdleClient);
     idleTimer->start(IDLE_TIMEOUT);

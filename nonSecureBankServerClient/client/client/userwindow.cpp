@@ -70,6 +70,9 @@ void UserWindow::on_pushButton_get_account_number_clicked()
 
 void UserWindow::on_pbn_view_balance_clicked()
 {
+    // To ensure that iam connected to the server
+    emit reconnectNeeded();
+
     ui->pbn_view_balance->setDisabled(true);
     // Request ID for View Account Balance
     quint8 requestId = 2;
@@ -107,6 +110,9 @@ void UserWindow::handleViewAccountBalanceResponse(const QJsonObject &responseObj
 
 void UserWindow::on_pbn_make_trasnaction_clicked()
 {
+    // To ensure that iam connected to the server
+    emit reconnectNeeded();
+
     ui->pbn_make_trasnaction->setDisabled(true);
     QString amountString = ui->lnedit_amount->text();
     bool conversionOk;
@@ -163,6 +169,9 @@ void UserWindow::handleMakeTransactionResponse(const QJsonObject &responseObject
 
 void UserWindow::on_pbn_mk_transfer_clicked()
 {
+    // To ensure that iam connected to the server
+    emit reconnectNeeded();
+
     ui->pbn_mk_transfer->setDisabled(true);
     // Get the account number to transfer to
     qint64 toAccountNumber = ui->lnedit_to_accountnumber->text().toLongLong();
@@ -241,6 +250,9 @@ void UserWindow::handleMakeTransferResponse(const QJsonObject &responseObject)
 
 void UserWindow::on_pbn_view_transaction_histroy_clicked()
 {
+    // To ensure that iam connected to the server
+    emit reconnectNeeded();
+
     // Disable the button upon clicking
     ui->pbn_view_transaction_histroy->setDisabled(true);
 

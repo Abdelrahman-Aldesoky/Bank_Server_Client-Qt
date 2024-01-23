@@ -80,6 +80,9 @@ void AdminWindow::readyRead()
 
 void AdminWindow::on_pushButton_get_account_number_clicked()
 {
+    // To ensure that iam connected to the server
+    emit reconnectNeeded();
+
     ui->pushButton_get_account_number->setDisabled(true);
     ui->label_error->clear();
     // Request ID for Get Account Number
@@ -139,6 +142,9 @@ void AdminWindow::handleGetAccountNumberResponse(const QJsonObject &responseObje
 
 void AdminWindow::on_pbn_view_balance_clicked()
 {
+    // To ensure that iam connected to the server
+    emit reconnectNeeded();
+
     ui->pbn_view_balance->setDisabled(true);
     ui->label_error_viewbalance->clear();
     // Request ID for View Account Balance
@@ -181,6 +187,9 @@ void AdminWindow::handleViewAccountBalanceResponse(const QJsonObject &responseOb
 
 void AdminWindow::on_pbn_create_new_account_clicked()
 {
+    // To ensure that iam connected to the server
+    emit reconnectNeeded();
+
     ui->pbn_create_new_account->setDisabled(true);
     ui->lbl_error_create->clear();
 
@@ -273,6 +282,9 @@ void AdminWindow::handleCreateNewAccountResponse(const QJsonObject &responseObje
 
 void AdminWindow::on_pbn_delete_account_clicked()
 {
+    // To ensure that iam connected to the server
+    emit reconnectNeeded();
+
     ui->pbn_delete_account->setDisabled(true);
     ui->lbl_error_delete->clear();
 
@@ -332,6 +344,9 @@ void AdminWindow::handleDeleteAccountResponse(const QJsonObject &responseObject)
 
 void AdminWindow::on_pbn_view_database_clicked()
 {
+    // To ensure that iam connected to the server
+    emit reconnectNeeded();
+
     ui->pbn_view_database->setDisabled(true);
     ui->lbl_view_database_error->clear();
 
@@ -397,6 +412,9 @@ void AdminWindow::handleViewDatabaseResponse(const QJsonObject &responseObject)
 
 void AdminWindow::on_pbn_view_transaction_history_clicked()
 {
+    // To ensure that iam connected to the server
+    emit reconnectNeeded();
+
     ui->pbn_view_transaction_history->setDisabled(true);
     // Get the account number to view transaction history
     qint64 accountNumber=ui->lnedit_act_number_transaction_history->text().toInt();
@@ -482,6 +500,9 @@ void AdminWindow::handleViewTransactionHistoryResponse(const QJsonObject &respon
 
 void AdminWindow::on_pbn_update_account_clicked()
 {
+    // To ensure that iam connected to the server
+    emit reconnectNeeded();
+
     ui->pbn_update_account->setDisabled(true);
     // Request ID for Update Account
     quint8 requestId = 9;

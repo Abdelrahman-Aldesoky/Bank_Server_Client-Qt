@@ -47,6 +47,24 @@ void client::connectToServer()
     socket->connectToHost("localhost", 54321);
 }
 
+void client::ensureConnected()
+{
+    // Check if the socket is connected
+    if (socket->state() != QAbstractSocket::ConnectedState)
+    {
+        // Attempt to reconnect
+        connectToServer();
+        // Wait for the socket to connect 3 seconds
+        if (!socket->waitForConnected(3000))
+        {
+            qDebug() << "Error: Could not connect to server.";
+            QMessageBox::warning(nullptr, "Warning",
+                                 "Could not connect to server. Please try again.",
+                                 QMessageBox::Ok);
+        }
+    }
+}
+
 void client::handleStateChanged(QAbstractSocket::SocketState socketState)
 {
     if (socketState == QAbstractSocket::ConnectedState)
@@ -119,7 +137,9 @@ void client::on_pushButton_login_clicked()
     if (username.isEmpty() || password.isEmpty())
     {
         qDebug() << "Warning: Please fill in the username and password.";
-        QMessageBox::warning(nullptr, "Warning", "Please fill in the username and password.", QMessageBox::Ok);
+        QMessageBox::warning(nullptr, "Warning",
+                             "Please fill in the username and password.",
+                             QMessageBox::Ok);
         return;
     }
 
@@ -127,7 +147,9 @@ void client::on_pushButton_login_clicked()
     if (!username.contains(usernameRegex))
     {
         qDebug() << "Warning: Username must only contain alphanumeric characters.";
-        QMessageBox::warning(nullptr, "Warning", "Username must only contain alphanumeric characters.", QMessageBox::Ok);
+        QMessageBox::warning(nullptr, "Warning",
+                             "Username must only contain alphanumeric characters.",
+                             QMessageBox::Ok);
         return;
     }
 
@@ -135,7 +157,9 @@ void client::on_pushButton_login_clicked()
     if (password.contains(passwordRegex))
     {
         qDebug() << "Warning: Password must not contain spaces.";
-        QMessageBox::warning(nullptr, "Warning", "Password must not contain spaces.", QMessageBox::Ok);
+        QMessageBox::warning(nullptr, "Warning",
+                             "Password must not contain spaces.",
+                             QMessageBox::Ok);
         return;
     }
 
@@ -169,8 +193,16 @@ void client::handleLoginResponse(const QJsonObject &responseObject)
             // Disconnect the readyRead signal from the client slot
             disconnect(socket, &QTcpSocket::readyRead, this, &client::readyRead);
             AdminWindow *adminWindow = new AdminWindow(nullptr, accountNumber, socket);
+
             // Connect the finished signal in the AdminWindow object to showOldWindow in the client object
-            connect(adminWindow, &AdminWindow::finished, this, &client::showOldWindow);
+            connect(adminWindow, &AdminWindow::finished,
+                    this, &client::showOldWindow);
+
+            // Connect the reconnectNeeded signal in the AdminWindow object
+            // to ensureConnected in the client object
+            connect(adminWindow, &AdminWindow::reconnectNeeded,
+                    this, &client::ensureConnected);
+
             qDebug() << adminWindow;
             adminWindow->show();
         }
@@ -179,8 +211,16 @@ void client::handleLoginResponse(const QJsonObject &responseObject)
             // Disconnect the readyRead signal from the client slot
             disconnect(socket, &QTcpSocket::readyRead, this, &client::readyRead);
             UserWindow *userWindow = new UserWindow(nullptr, accountNumber, socket);
+
             // Connect the finished signal in the UserWindow object to showOldWindow in the client object
-            connect(userWindow, &UserWindow::finished, this, &client::showOldWindow);
+            connect(userWindow, &UserWindow::finished,
+                    this, &client::showOldWindow);
+
+            // Connect the reconnectNeeded signal in the UserWindow object
+            // to ensureConnected in the client object
+            connect(userWindow, &UserWindow::reconnectNeeded,
+                    this, &client::ensureConnected);
+
             qDebug() << userWindow;
             userWindow->show();
         }
@@ -189,7 +229,9 @@ void client::handleLoginResponse(const QJsonObject &responseObject)
     else
     {
         // Display a login failed message
-        QMessageBox::warning(this, "Login Failed", "Invalid username or password. Please try again.", QMessageBox::Ok);
+        QMessageBox::warning(this, "Login Failed",
+                             "Invalid username or password. Please try again.",
+                             QMessageBox::Ok);
     }
 }
 
