@@ -1,7 +1,9 @@
 # Banking Client-Server Application
 
 ## Overview
-This application is a banking system implemented as a client-server model using Qt. The server handles incoming connections, processes client requests, and interacts with a database. The client provides interfaces for both regular users and administrators.
+This application is a banking system implemented as a client-server model using Qt. The server handles incoming connections, processes client requests, and interacts with an **SQLite database**. The client provides interfaces for both regular users and administrators. Importantly, the system is designed to operate across various network types - it can function on a **Local Area Network (LAN)**, a **Wide Area Network (WAN)**, or even on the **same machine**. Moreover, it is capable of operating **over the Internet**, thereby offering extensive connectivity.
+
+Notably, there are **two versions** of this application. One version connects in an **unsecured** manner, while the other version connects **securely using SSL**. This ensures that users have the flexibility to choose the connection type based on their security needs and preferences.
 
 ## Key Features
 - **Multithreading**: Each client gets its own thread and connection to the database. This allows the server to handle multiple clients simultaneously, making it more efficient and faster.
